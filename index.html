@@ -56,8 +56,9 @@ const $ = id => document.getElementById(id);
 const MENUS = ['샐러드(닭가슴살)','샐러드(오리훈제)','샐러드(치킨텐더)','샌드위치(매쉬포테이토)','샌드위치(치킨텐더)','볶음밥(김치)','볶음밥(중국식)','백반'];
 const MEALS = [{key:'breakfast',label:'조식'},{key:'lunch',label:'중식'},{key:'dinner',label:'석식'}];
 const NONE = '신청 안 함';
+const allowedMenus = meal => meal === 'lunch' ? ['백반'] : meal === 'dinner' ? MENUS.filter(menu=>menu!=='백반') : MENUS;
 const DAY_MS = 86400000;
-const state = {ready:false,busy:false,week:'',orders:[],adminOrders:[],admin:false,api:null,db:null,confirm:null};
+const state = {ready:false,busy:false,week:'',lastSubmittedDate:'',orders:[],adminOrders:[],admin:false,api:null,db:null,confirm:null};
 const money = value => value.toLocaleString('ko-KR');
 const price = menu => menu === '백반' ? 8000 : 9000;
 function todayKST(now=Date.now()){return new Date(now + 9*3600000).toISOString().slice(0,10);}
@@ -84,8 +85,10 @@ function renderWeek(){
     const date=addDays(state.week,i);const details=document.createElement('details');details.className='day';details.open=i===0;const summary=textNode('summary',dateLabel(date),details);summary.setAttribute('aria-label',date+' 식사 선택');const body=document.createElement('div');body.className='meals';
     MEALS.forEach(meal=>{
       const label=document.createElement('label');const title=document.createElement('div');title.className='meal-title';textNode('span',meal.label,title);const closed=Date.now()>deadline(date,meal.key);if(closed)textNode('span','마감',title,'closed');label.append(title);
-      const select=document.createElement('select');select.dataset.date=date;select.dataset.meal=meal.key;select.setAttribute('aria-label',date+' '+meal.label+' 메뉴');const options=[NONE,...(meal.key==='breakfast'?['백반']:meal.key==='dinner'?MENUS.filter(x=>x!=='백반'):MENUS)];options.forEach(menu=>{const option=document.createElement('option');option.value=menu;option.textContent=menu;select.append(option);});
-      const existing=state.orders.find(o=>o.date===date&&o.meal===meal.key&&o.empId===emp);select.value=existing?.menu||NONE;select.disabled=closed;label.append(select);textNode('div',meal.key==='breakfast'?'전날 13:00 마감':meal.key==='lunch'?'당일 09:00 마감':'당일 13:00 마감',label,'deadline');body.append(label);
+      const select=document.createElement('select');select.dataset.date=date;select.dataset.meal=meal.key;select.setAttribute('aria-label',date+' '+meal.label+' 메뉴');const options=[NONE,...allowedMenus(meal.key)];options.forEach(menu=>{const option=document.createElement('option');option.value=menu;option.textContent=menu;select.append(option);});
+      const existing=state.orders.find(o=>o.date===date&&o.meal===meal.key&&o.empId===emp);
+      if(existing&&!options.includes(existing.menu)){const legacy=document.createElement('option');legacy.value=existing.menu;legacy.textContent=existing.menu+' (기존 신청)';legacy.disabled=true;select.append(legacy);}
+      select.value=existing?.menu||NONE;select.disabled=closed;label.append(select);textNode('div',meal.key==='breakfast'?'전날 13:00 마감':meal.key==='lunch'?'당일 09:00 마감':'당일 13:00 마감',label,'deadline');body.append(label);
     });details.append(body);$('days').append(details);
   }
 }
@@ -104,12 +107,12 @@ async function loadMine(){
 }
 async function submitOrders(){
   if(!state.ready||state.busy)return;const empId=$('employee-id').value.trim(),name=$('employee-name').value.trim();if(!/^[A-Za-z0-9-]{1,30}$/.test(empId)){message('employee-status','사번은 영문·숫자·하이픈으로 입력해주세요.',true);return;}if(!name){message('employee-status','이름을 입력해주세요.',true);return;}
-  const changed=[];document.querySelectorAll('#days select').forEach(select=>{const date=select.dataset.date,meal=select.dataset.meal,menu=select.value;if(Date.now()>deadline(date,meal))return;const old=state.orders.find(o=>o.empId===empId&&o.date===date&&o.meal===meal);if(menu!==(old?.menu||NONE)||(old&&old.name!==name))changed.push({date,meal,menu});});
+  const changed=[];document.querySelectorAll('#days select').forEach(select=>{const date=select.dataset.date,meal=select.dataset.meal,menu=select.value;if(Date.now()>deadline(date,meal))return;const old=state.orders.find(o=>o.empId===empId&&o.date===date&&o.meal===meal);if(menu!==(old?.menu||NONE)||(old&&old.name!==name&&[NONE,...allowedMenus(meal)].includes(menu)))changed.push({date,meal,menu});});
   if(!changed.length){message('employee-status','변경된 신청 내용이 없습니다.');return;}
   setBusy(true);try{
     const api=state.api;const batch=api.writeBatch(state.db);
     changed.forEach(({date,meal,menu})=>{const [year,month,day]=date.split('-').map(Number);batch.set(api.doc(state.db,'orders',`${empId}_${date}_${meal}`),{empId,name,date,year,month,day,meal,menu,updatedAt:api.serverTimestamp()});});
-    await batch.commit();writeLocal('aurora.empId',empId);writeLocal('aurora.name',name);const result=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('empId','==',empId)));state.orders=result.docs.map(d=>({id:d.id,...d.data()}));renderWeek();message('employee-status',`${changed.length}건의 신청 변경을 저장했습니다.`);
+    await batch.commit();state.lastSubmittedDate=(changed.find(o=>o.menu!==NONE)||changed[0]).date;writeLocal('aurora.empId',empId);writeLocal('aurora.name',name);const result=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('empId','==',empId)));state.orders=result.docs.map(d=>({id:d.id,...d.data()}));renderWeek();message('employee-status',`${changed.length}건의 신청 변경을 저장했습니다.`);
   }catch(e){message('employee-status',errorText(e),true);}finally{setBusy(false);refreshDeadlines();}
 }
 function showEmployee(){state.admin=false;$('employee-view').hidden=false;$('admin-view').hidden=true;$('page-title').textContent='식사 신청';$('mode-button').textContent='관리자';}
@@ -124,11 +127,13 @@ async function checkAdminPassword(password){
   return hash===ADMIN_PASSWORD_HASH;
 }
 async function enterAdmin(){
+  $('admin-date').value=state.lastSubmittedDate||state.week;
+  $('employee-filter').value='';
   $('login-dialog').close();state.admin=true;$('employee-view').hidden=true;$('admin-view').hidden=false;
   $('page-title').textContent='식사 신청 관리';$('mode-button').textContent='직원 화면';await refreshAdmin();
 }
 async function refreshAdmin(){
-  if(!state.admin)return;setBusy(true);message('admin-status','조회 중…');try{const api=state.api;const docs=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('date','==',$('admin-date').value)));state.adminOrders=docs.docs.map(d=>({id:d.id,...d.data()}));renderAdmin();message('admin-status','최신 내역을 불러왔습니다.');}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}
+  if(!state.admin)return;setBusy(true);message('admin-status','조회 중…');try{const api=state.api;const docs=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('date','==',$('admin-date').value)));state.adminOrders=docs.docs.map(d=>({id:d.id,...d.data()}));renderAdmin();message('admin-status',`${$('admin-date').value} 신청 내역을 불러왔습니다.`);}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}
 }
 function renderAdmin(){
   const groups=new Map();let count=0,amount=0;state.adminOrders.forEach(o=>{if(o.menu===NONE)return;const key=o.meal+'|'+o.menu;groups.set(key,(groups.get(key)||0)+1);count++;amount+=price(o.menu);});$('total-count').textContent=count+'개';$('total-amount').textContent=money(amount)+'원';$('summary-body').replaceChildren();
@@ -137,7 +142,7 @@ function renderAdmin(){
     MENUS.forEach(menu=>{const n=groups.get(meal.key+'|'+menu)||0;if(!n)return;const tr=document.createElement('tr');textNode('td',meal.label+' · '+menu,tr);[n,money(price(menu)),money(n*price(menu))].forEach(v=>textNode('td',String(v),tr,'num'));$('summary-body').append(tr);subCount+=n;subAmount+=n*price(menu);});
     if(subCount){const tr=document.createElement('tr');textNode('th',meal.label+' 합계',tr);textNode('th',String(subCount),tr,'num');textNode('th','—',tr,'num');textNode('th',money(subAmount),tr,'num');$('summary-body').append(tr);}
   });
-  if(!count){const tr=document.createElement('tr');const td=textNode('td','신청 내역이 없습니다.',tr,'empty');td.colSpan=4;$('summary-body').append(tr);}
+  if(!count){const tr=document.createElement('tr');const td=textNode('td',`${$('admin-date').value}에는 신청 내역이 없습니다. 신청한 날짜로 변경해주세요.`,tr,'empty');td.colSpan=4;$('summary-body').append(tr);}
   renderPeople();
 }
 function renderPeople(){
@@ -166,7 +171,7 @@ $('login-form').onsubmit=async event=>{
 $('confirm-cancel').onclick=()=>{state.confirm=null;$('confirm-dialog').close();};$('confirm-ok').onclick=async()=>{const fn=state.confirm;state.confirm=null;$('confirm-dialog').close();if(fn)await fn();};
 $('reset-all').onclick=()=>ask('모든 직원의 모든 날짜 신청을 삭제합니다. 복구할 수 없습니다. 계속할까요?',async()=>{setBusy(true);try{const api=state.api;const docs=await api.getDocs(api.collection(state.db,'orders'));await deleteDocuments(docs.docs.map(d=>d.id));}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}});
 $('employee-id').onchange=()=>{state.orders=[];renderWeek();message('employee-status','기존 신청을 수정하려면 내 신청 불러오기를 눌러주세요.');};
-state.week=monday(todayKST());$('admin-date').value=todayKST();$('employee-id').value=readLocal('aurora.empId');$('employee-name').value=readLocal('aurora.name');renderWeek();setInterval(refreshDeadlines,15000);
+state.week=monday(todayKST());$('admin-date').value=state.week;$('employee-id').value=readLocal('aurora.empId');$('employee-name').value=readLocal('aurora.name');renderWeek();setInterval(refreshDeadlines,15000);
 async function boot(){
   if(!firebaseConfig.apiKey||!firebaseConfig.projectId||!firebaseConfig.appId){connection('연결 전 미리보기입니다. index.html의 firebaseConfig를 입력하면 온라인 신청을 사용할 수 있습니다.');return;}
   try{
