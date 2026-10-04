@@ -17,7 +17,7 @@
   <div id="connection" class="notice" role="status">Firebase 연결을 준비하고 있습니다.</div>
   <div id="employee-view">
     <div class="grid"><label>사번<input id="employee-id" autocomplete="username" maxlength="30" placeholder="사번 입력"></label><label>이름<input id="employee-name" autocomplete="name" maxlength="40" placeholder="이름 입력"></label></div>
-    <div class="tools"><button id="load-orders" type="button" disabled>내 신청 불러오기</button><span class="muted">신청 후에는 같은 브라우저에서 수정해주세요.</span></div>
+    <div class="tools"><button id="load-orders" type="button" disabled>내 신청 불러오기</button><span class="muted">어느 기기에서든 사번으로 신청을 조회할 수 있습니다.</span></div>
     <div class="week"><button id="prev-week" aria-label="이전 주" type="button">‹</button><span id="week-label"></span><button id="next-week" aria-label="다음 주" type="button">›</button></div>
     <div id="days"></div>
     <button id="submit-orders" class="primary wide" type="button" disabled>신청 제출</button>
@@ -25,7 +25,7 @@
     <p class="muted">중식: 당일 09:00 / 석식: 당일 13:00 / 조식: 전날 13:00 마감 · 한국시간 기준</p>
   </div>
   <div id="admin-view" hidden>
-    <div class="row"><label>조회 날짜<input id="admin-date" type="date"></label><button id="admin-refresh" type="button">새로고침</button><button id="admin-logout" type="button">로그아웃</button></div>
+    <div class="row"><label>조회 날짜<input id="admin-date" type="date"></label><button id="admin-refresh" type="button">새로고침</button><button id="admin-logout" type="button">관리자 종료</button></div>
     <div class="panel totals"><div><div class="muted">총 신청 수량</div><strong id="total-count">0개</strong></div><div><div class="muted">총 금액 · 부가세 포함</div><strong id="total-amount">0원</strong></div></div>
     <h2>식사·메뉴별 집계</h2>
     <div class="table-wrap"><table><thead><tr><th>식사 / 메뉴</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th></tr></thead><tbody id="summary-body"></tbody></table></div>
@@ -35,27 +35,28 @@
   </div>
   <footer class="muted">Aurora Project · 식사 신청</footer>
 </main>
-<dialog id="login-dialog"><form id="login-form"><h2 style="margin-top:0">관리자 로그인</h2><label>이메일<input id="admin-email" type="email" autocomplete="username" required></label><label>비밀번호<input id="admin-password" type="password" autocomplete="current-password" required></label><p class="status" id="login-status" aria-live="polite"></p><div class="grid"><button id="login-cancel" type="button">취소</button><button id="login-submit" class="primary" type="submit">로그인</button></div></form></dialog>
+<dialog id="login-dialog"><form id="login-form"><h2 style="margin-top:0">관리자 비밀번호</h2><label>비밀번호<input id="admin-password" type="password" autocomplete="off" required></label><p class="status" id="login-status" aria-live="polite"></p><div class="grid"><button id="login-cancel" type="button">취소</button><button id="login-submit" class="primary" type="submit">확인</button></div></form></dialog>
 <dialog id="confirm-dialog"><h2 style="margin-top:0">확인</h2><p id="confirm-text"></p><div class="grid"><button id="confirm-cancel" type="button">취소</button><button id="confirm-ok" class="primary" type="button">확인</button></div></dialog>
 <script type="module">
 // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > 웹 앱의 firebaseConfig 값을 붙여넣으세요.
-// 아래 값은 웹 앱용 설정입니다. 관리자 비밀번호나 서비스 계정 키를 넣지 마세요.
+// 아래 값은 웹 앱용 설정입니다. Firebase Authentication은 사용하지 않습니다.
 const firebaseConfig = {
-  apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
-  authDomain: "meal-order-9a8d1.firebaseapp.com",
-  projectId: "meal-order-9a8d1",
-  storageBucket: "meal-order-9a8d1.firebasestorage.app",
-  messagingSenderId: "288830614630",
-  appId: "1:288830614630:web:bad7a2d8c8e8a9bcf451a7",
-  measurementId: "G-EMZW4X4XYP"
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 };
 
+// 화면 잠금용 비밀번호의 SHA-256 값. Firebase 인증과는 연동하지 않습니다.
+const ADMIN_PASSWORD_HASH = 'c1a9dffdec1411c1dd1fb7a537a9ac3f6ca323c1a04c0bb2bd9b3c329071b90d';
 const $ = id => document.getElementById(id);
 const MENUS = ['샐러드(닭가슴살)','샐러드(오리훈제)','샐러드(치킨텐더)','샌드위치(매쉬포테이토)','샌드위치(치킨텐더)','볶음밥(김치)','볶음밥(중국식)','백반'];
 const MEALS = [{key:'breakfast',label:'조식'},{key:'lunch',label:'중식'},{key:'dinner',label:'석식'}];
 const NONE = '신청 안 함';
 const DAY_MS = 86400000;
-const state = {ready:false,busy:false,week:'',owner:'',orders:[],adminOrders:[],admin:false,api:null,auth:null,db:null,adminAuth:null,adminDb:null,confirm:null};
+const state = {ready:false,busy:false,week:'',orders:[],adminOrders:[],admin:false,api:null,db:null,confirm:null};
 const money = value => value.toLocaleString('ko-KR');
 const price = menu => menu === '백반' ? 8000 : 9000;
 function todayKST(now=Date.now()){return new Date(now + 9*3600000).toISOString().slice(0,10);}
@@ -70,12 +71,8 @@ function readLocal(key){try{return localStorage.getItem(key)||'';}catch{return '
 function writeLocal(key,value){try{localStorage.setItem(key,value);}catch{/* 로컬 정보 저장 실패 시에도 Firebase 저장은 유지 */}}
 function errorText(error){
   const code=error?.code||'';
-  if(code.includes('permission-denied'))return '권한 또는 마감 시간 때문에 저장할 수 없습니다. 다른 기기로 이미 신청했다면 기존 기기에서 수정하거나 관리자에게 요청해주세요.';
-  if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return '이메일 또는 비밀번호를 확인해주세요.';
-  if(code.includes('operation-not-allowed'))return 'Firebase Authentication의 익명 및 이메일/비밀번호 로그인을 활성화해주세요.';
-  if(code.includes('unauthorized-domain'))return 'Firebase Authentication의 승인된 도메인에 GitHub Pages 도메인을 추가해주세요.';
+  if(code.includes('permission-denied'))return 'Firestore 규칙 또는 신청 마감 시간을 확인해주세요. 로그인 없는 버전의 규칙을 게시해야 합니다.';
   if(code.includes('network')||code.includes('unavailable'))return '인터넷 연결을 확인한 후 다시 시도해주세요.';
-  if(code.includes('too-many-requests'))return '요청이 많습니다. 잠시 후 다시 시도해주세요.';
   return '처리하지 못했습니다. Firebase 설정과 연결을 확인해주세요. ('+(code||'연결 오류')+')';
 }
 function setBusy(busy){state.busy=busy;$('submit-orders').disabled=busy||!state.ready;$('load-orders').disabled=busy||!state.ready;['prev-week','next-week','mode-button','admin-refresh','reset-all','admin-logout','admin-date','employee-id','employee-name'].forEach(id=>$(id).disabled=busy);document.querySelectorAll('#admin-records button').forEach(button=>button.disabled=busy);document.querySelectorAll('#days select').forEach(select=>select.disabled=busy||Date.now()>deadline(select.dataset.date,select.dataset.meal));}
@@ -92,9 +89,17 @@ function renderWeek(){
   }
 }
 function refreshDeadlines(){document.querySelectorAll('#days select').forEach(select=>{if(!select.disabled&&Date.now()>deadline(select.dataset.date,select.dataset.meal)){select.disabled=true;const title=select.parentElement.querySelector('.meal-title');textNode('span','마감',title,'closed');}});}
-function lockIdentity(){const ids=[...new Set(state.orders.map(o=>o.empId))];if(ids.length===1){$('employee-id').value=ids[0];$('employee-id').readOnly=true;$('employee-name').value=state.orders[0].name;}else $('employee-id').readOnly=false;}
 async function loadMine(){
-  if(!state.ready)return;setBusy(true);try{const api=state.api;const result=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('owner','==',state.owner)));state.orders=result.docs.map(d=>({id:d.id,...d.data()}));lockIdentity();renderWeek();message('employee-status',state.orders.length?'기존 신청 내역을 불러왔습니다.':'저장된 신청 내역이 없습니다.');}catch(e){message('employee-status',errorText(e),true);}finally{setBusy(false);}
+  if(!state.ready||state.busy)return;
+  const empId=$('employee-id').value.trim();
+  if(!/^[A-Za-z0-9-]{1,30}$/.test(empId)){message('employee-status','사번을 먼저 입력해주세요.',true);return;}
+  setBusy(true);
+  try{
+    const api=state.api;const result=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('empId','==',empId)));
+    state.orders=result.docs.map(d=>({id:d.id,...d.data()}));
+    if(state.orders.length&&!$('employee-name').value.trim())$('employee-name').value=state.orders[0].name;
+    renderWeek();message('employee-status',state.orders.length?'기존 신청 내역을 불러왔습니다.':'저장된 신청 내역이 없습니다.');
+  }catch(e){state.orders=[];renderWeek();message('employee-status',errorText(e),true);}finally{setBusy(false);}
 }
 async function submitOrders(){
   if(!state.ready||state.busy)return;const empId=$('employee-id').value.trim(),name=$('employee-name').value.trim();if(!/^[A-Za-z0-9-]{1,30}$/.test(empId)){message('employee-status','사번은 영문·숫자·하이픈으로 입력해주세요.',true);return;}if(!name){message('employee-status','이름을 입력해주세요.',true);return;}
@@ -102,22 +107,27 @@ async function submitOrders(){
   if(!changed.length){message('employee-status','변경된 신청 내용이 없습니다.');return;}
   setBusy(true);try{
     const api=state.api;const batch=api.writeBatch(state.db);
-    changed.forEach(({date,meal,menu})=>{const [year,month,day]=date.split('-').map(Number);batch.set(api.doc(state.db,'orders',`${empId}_${date}_${meal}`),{owner:state.owner,empId,name,date,year,month,day,meal,menu,updatedAt:api.serverTimestamp()});});
-    await batch.commit();writeLocal('aurora.empId',empId);writeLocal('aurora.name',name);await loadMine();message('employee-status',`${changed.length}건의 신청 변경을 저장했습니다.`);
+    changed.forEach(({date,meal,menu})=>{const [year,month,day]=date.split('-').map(Number);batch.set(api.doc(state.db,'orders',`${empId}_${date}_${meal}`),{empId,name,date,year,month,day,meal,menu,updatedAt:api.serverTimestamp()});});
+    await batch.commit();writeLocal('aurora.empId',empId);writeLocal('aurora.name',name);const result=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('empId','==',empId)));state.orders=result.docs.map(d=>({id:d.id,...d.data()}));renderWeek();message('employee-status',`${changed.length}건의 신청 변경을 저장했습니다.`);
   }catch(e){message('employee-status',errorText(e),true);}finally{setBusy(false);refreshDeadlines();}
 }
 function showEmployee(){state.admin=false;$('employee-view').hidden=false;$('admin-view').hidden=true;$('page-title').textContent='식사 신청';$('mode-button').textContent='관리자';}
 async function openAdmin(){
-  if(state.admin){showEmployee();return;}if(!state.ready){connection('Firebase 설정을 완료하면 관리자 로그인을 사용할 수 있습니다.',true);return;}
-  if(state.adminAuth.currentUser){await enterAdmin();return;}message('login-status','');$('login-dialog').showModal();
+  if(state.admin){showEmployee();return;}
+  if(!state.ready){connection('Firebase 설정을 완료하면 관리자 화면을 사용할 수 있습니다.',true);return;}
+  message('login-status','');$('admin-password').value='';$('login-dialog').showModal();$('admin-password').focus();
+}
+async function checkAdminPassword(password){
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
+  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+  return hash===ADMIN_PASSWORD_HASH;
 }
 async function enterAdmin(){
-  try{const api=state.api,user=state.adminAuth.currentUser;if(!user)return;const admin=await api.getDoc(api.doc(state.adminDb,'admins',user.uid));if(!admin.exists()||admin.data().enabled!==true){await api.signOut(state.adminAuth);message('login-status','관리자 권한이 없습니다. admins 컬렉션의 UID와 enabled 값을 확인해주세요.',true);return;}
-    $('login-dialog').close();state.admin=true;$('employee-view').hidden=true;$('admin-view').hidden=false;$('page-title').textContent='식사 신청 관리';$('mode-button').textContent='직원 화면';await refreshAdmin();
-  }catch(e){message('login-status',errorText(e),true);message('employee-status',errorText(e),true);}
+  $('login-dialog').close();state.admin=true;$('employee-view').hidden=true;$('admin-view').hidden=false;
+  $('page-title').textContent='식사 신청 관리';$('mode-button').textContent='직원 화면';await refreshAdmin();
 }
 async function refreshAdmin(){
-  if(!state.admin)return;setBusy(true);message('admin-status','조회 중…');try{const api=state.api;const docs=await api.getDocs(api.query(api.collection(state.adminDb,'orders'),api.where('date','==',$('admin-date').value)));state.adminOrders=docs.docs.map(d=>({id:d.id,...d.data()}));renderAdmin();message('admin-status','최신 내역을 불러왔습니다.');}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}
+  if(!state.admin)return;setBusy(true);message('admin-status','조회 중…');try{const api=state.api;const docs=await api.getDocs(api.query(api.collection(state.db,'orders'),api.where('date','==',$('admin-date').value)));state.adminOrders=docs.docs.map(d=>({id:d.id,...d.data()}));renderAdmin();message('admin-status','최신 내역을 불러왔습니다.');}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}
 }
 function renderAdmin(){
   const groups=new Map();let count=0,amount=0;state.adminOrders.forEach(o=>{if(o.menu===NONE)return;const key=o.meal+'|'+o.menu;groups.set(key,(groups.get(key)||0)+1);count++;amount+=price(o.menu);});$('total-count').textContent=count+'개';$('total-amount').textContent=money(amount)+'원';$('summary-body').replaceChildren();
@@ -136,26 +146,37 @@ function renderPeople(){
 }
 function ask(text,fn){if(state.busy)return;state.confirm=fn;$('confirm-text').textContent=text;$('confirm-dialog').showModal();}
 async function deleteDocuments(ids){
-  setBusy(true);let done=0;try{const api=state.api;for(let offset=0;offset<ids.length;offset+=400){const batch=api.writeBatch(state.adminDb);const chunk=ids.slice(offset,offset+400);chunk.forEach(id=>batch.delete(api.doc(state.adminDb,'orders',id)));await batch.commit();done+=chunk.length;}await refreshAdmin();message('admin-status',done+'건을 삭제했습니다.');}catch(e){message('admin-status',`${done}건 삭제 완료. 나머지 삭제 실패: `+errorText(e),true);}finally{setBusy(false);}
+  setBusy(true);let done=0;try{const api=state.api;for(let offset=0;offset<ids.length;offset+=400){const batch=api.writeBatch(state.db);const chunk=ids.slice(offset,offset+400);chunk.forEach(id=>batch.delete(api.doc(state.db,'orders',id)));await batch.commit();done+=chunk.length;}await refreshAdmin();message('admin-status',done+'건을 삭제했습니다.');}catch(e){message('admin-status',`${done}건 삭제 완료. 나머지 삭제 실패: `+errorText(e),true);}finally{setBusy(false);}
 }
 $('load-orders').onclick=loadMine;$('submit-orders').onclick=submitOrders;$('mode-button').onclick=openAdmin;
 $('prev-week').onclick=()=>{state.week=addDays(state.week,-7);renderWeek();message('employee-status','');};$('next-week').onclick=()=>{state.week=addDays(state.week,7);renderWeek();message('employee-status','');};
 $('admin-date').onchange=refreshAdmin;$('admin-refresh').onclick=refreshAdmin;$('employee-filter').oninput=renderPeople;
-$('admin-logout').onclick=async()=>{if(state.busy)return;try{await state.api.signOut(state.adminAuth);state.adminOrders=[];showEmployee();message('employee-status','관리자 로그아웃 완료');}catch(e){message('admin-status',errorText(e),true);}};
-$('login-cancel').onclick=()=>$('login-dialog').close();
-$('login-form').onsubmit=async event=>{event.preventDefault();$('login-submit').disabled=true;message('login-status','로그인 중…');try{await state.api.signInWithEmailAndPassword(state.adminAuth,$('admin-email').value.trim(),$('admin-password').value);$('admin-password').value='';await enterAdmin();}catch(e){message('login-status',errorText(e),true);}finally{$('login-submit').disabled=false;}};
+$('admin-logout').onclick=()=>{if(state.busy)return;state.adminOrders=[];showEmployee();message('employee-status','관리자 화면을 종료했습니다.');};
+$('login-cancel').onclick=()=>{$('admin-password').value='';$('login-dialog').close();};
+$('login-form').onsubmit=async event=>{
+  event.preventDefault();$('login-submit').disabled=true;message('login-status','확인 중…');
+  try{
+    const valid=await checkAdminPassword($('admin-password').value);$('admin-password').value='';
+    if(!valid){message('login-status','비밀번호가 일치하지 않습니다.',true);$('admin-password').focus();return;}
+    await enterAdmin();
+  }catch(e){message('login-status','비밀번호를 확인하지 못했습니다. HTTPS 주소에서 접속해주세요.',true);}
+  finally{$('login-submit').disabled=false;}
+};
 $('confirm-cancel').onclick=()=>{state.confirm=null;$('confirm-dialog').close();};$('confirm-ok').onclick=async()=>{const fn=state.confirm;state.confirm=null;$('confirm-dialog').close();if(fn)await fn();};
-$('reset-all').onclick=()=>ask('모든 직원의 모든 날짜 신청을 삭제합니다. 복구할 수 없습니다. 계속할까요?',async()=>{setBusy(true);try{const api=state.api;const docs=await api.getDocs(api.collection(state.adminDb,'orders'));await deleteDocuments(docs.docs.map(d=>d.id));}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}});
-$('employee-id').onchange=renderWeek;
+$('reset-all').onclick=()=>ask('모든 직원의 모든 날짜 신청을 삭제합니다. 복구할 수 없습니다. 계속할까요?',async()=>{setBusy(true);try{const api=state.api;const docs=await api.getDocs(api.collection(state.db,'orders'));await deleteDocuments(docs.docs.map(d=>d.id));}catch(e){message('admin-status',errorText(e),true);}finally{setBusy(false);}});
+$('employee-id').onchange=()=>{state.orders=[];renderWeek();message('employee-status','기존 신청을 수정하려면 내 신청 불러오기를 눌러주세요.');};
 state.week=monday(todayKST());$('admin-date').value=todayKST();$('employee-id').value=readLocal('aurora.empId');$('employee-name').value=readLocal('aurora.name');renderWeek();setInterval(refreshDeadlines,15000);
 async function boot(){
   if(!firebaseConfig.apiKey||!firebaseConfig.projectId||!firebaseConfig.appId){connection('연결 전 미리보기입니다. index.html의 firebaseConfig를 입력하면 온라인 신청을 사용할 수 있습니다.');return;}
   try{
-    const base='https://www.gstatic.com/firebasejs/12.19.0/';const [appApi,authApi,dbApi]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-auth.js'),import(base+'firebase-firestore.js')]);state.api={...authApi,...dbApi};
-    const app=appApi.initializeApp(firebaseConfig);state.auth=authApi.getAuth(app);state.db=dbApi.getFirestore(app);await authApi.setPersistence(state.auth,authApi.browserLocalPersistence);await state.auth.authStateReady();if(!state.auth.currentUser)await authApi.signInAnonymously(state.auth);state.owner=state.auth.currentUser.uid;
-    const adminApp=appApi.initializeApp(firebaseConfig,'aurora-admin');state.adminAuth=authApi.getAuth(adminApp);await authApi.setPersistence(state.adminAuth,authApi.browserSessionPersistence);await state.adminAuth.authStateReady();state.adminDb=dbApi.getFirestore(adminApp);state.ready=true;setBusy(false);connection('온라인 연결 완료 · Firebase에 공동 저장됩니다.');await loadMine();
+    const base='https://www.gstatic.com/firebasejs/12.19.0/';
+    const [appApi,dbApi]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-firestore.js')]);
+    state.api=dbApi;const app=appApi.initializeApp(firebaseConfig);state.db=dbApi.getFirestore(app);
+    state.ready=true;setBusy(false);connection('온라인 연결 완료 · 로그인 없이 Firebase에 저장됩니다.');
+    if($('employee-id').value.trim())await loadMine();
   }catch(e){state.ready=false;setBusy(false);connection(errorText(e),true);}
 }
+
 boot();
 </script>
 </body>
