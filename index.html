@@ -7,12 +7,14 @@
 :root{color-scheme:light;--green:#176447;--ink:#18352a;--muted:#596e63;--line:#dce5df;--bg:#f3f7f4}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}button,input,select{font:inherit}button{cursor:pointer}button,input,select{min-height:44px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:white;color:var(--ink)}button:disabled,select:disabled{cursor:default;opacity:.55}button:hover:not(:disabled){border-color:var(--green)}:focus-visible{outline:3px solid #75b99e;outline-offset:2px}button.primary{background:var(--green);color:white;border-color:var(--green)}button.danger{color:#ae2830}header{background:white;border-bottom:1px solid var(--line)}.header{max-width:1120px;margin:auto;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:12px}.brand img{width:122px;height:auto;display:block}.brand strong{font-size:19px;font-weight:650}.brand small{display:block;color:var(--muted);font-size:12px}.wrap{max-width:1120px;margin:auto;padding:22px 20px 50px}h1{font-size:25px;margin:0 0 16px}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:0}p{margin:8px 0}.subtle{color:var(--muted);font-size:14px}.tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{flex:1}.tabs button[aria-selected=true]{background:var(--green);color:white}.panel{padding:20px;background:white;border:1px solid var(--line);border-radius:13px;margin-bottom:18px}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}label{display:block;font-size:14px;color:var(--muted)}label input,label select{display:block;width:100%;margin-top:5px}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:15px}
 
+/* 시각적 피드백 스타일 강화 */
 .status{white-space:pre-wrap;font-size:14px;margin:12px 0 0;padding:10px 14px;border-radius:8px;background:#eef6f2;border:1px solid #cce3d7;color:var(--green);transition:all .2s ease}
 .status.error{background:#fdf2f2;border-color:#f5c6cb;color:#ae2830}
 .status.success{background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.05)}
 
 .weekbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0}.weekbar strong{text-align:center}.days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.day{background:white;border:1px solid var(--line);border-radius:13px;padding:16px}.day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}.date{font-size:13px;color:var(--muted)}.slot{margin-top:12px;padding-top:8px;border-top:1px dashed var(--line)}.slot:first-of-type{border-top:none;padding-top:0}.slot-top{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:13px;color:var(--muted);margin-bottom:5px}.slot-top strong{color:var(--ink);font-size:15px}.slot select{width:100%;font-size:14px}.location-box{display:flex;gap:10px;margin-top:6px;font-size:13px;background:#f8faf9;padding:6px 10px;border-radius:7px;border:1px solid var(--line)}.location-box label{display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--ink);font-size:13px}.location-box input[type="radio"]{min-height:auto;width:auto;margin:0;cursor:pointer}.deadline{font-size:12px;margin:3px 0;color:var(--muted)}.submit{margin-top:20px;width:100%;min-height:50px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:15px 0}.total{border:1px solid var(--line);border-radius:10px;padding:14px;background:#f7faf8}.total strong{display:block;font-size:21px}.table-wrap{overflow-x:auto;margin:14px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:11px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#f1f6f3;font-weight:600}.num{text-align:right;font-variant-numeric:tabular-nums}.empty{padding:20px;color:var(--muted);text-align:center}.detail-button{min-height:36px;font-size:13px;padding:5px 9px}dialog{border:1px solid var(--line);border-radius:14px;padding:22px;width:calc(100% - 32px);max-width:430px;color:var(--ink)}dialog::backdrop{background:#10271a80}[hidden]{display:none!important}.badge{display:inline-block;padding:2px 7px;border-radius:5px;background:#edf4ee;font-size:12px}.footnote{margin-top:24px;font-size:12px;color:var(--muted)}
 
+/* 완료 모달 팝업 전용 스타일 */
 .success-icon{width:56px;height:56px;background:#e8f5e9;color:#2e7d32;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px}
 .success-dialog{text-align:center}
 
@@ -34,12 +36,13 @@
 <section id="adminScreen" hidden>
 <div class="row"><h1>식사 신청 집계</h1><button id="leaveAdmin" type="button">관리자 나가기 · 직원 화면</button></div>
 <div class="panel"><div class="fields"><label>조회 방식<select id="viewMode"><option value="day">일별</option><option value="month">월별</option></select></label><label id="dayField">조회 날짜<input id="queryDate" type="date"></label><label id="monthField" hidden>조회 연월<input id="queryMonth" type="month"></label><label>신청자 구분<select id="queryGroup"><option value="all">전체</option><option value="gs">GS직원</option><option value="partner">협력사</option><option value="vip">VIP</option></select></label></div><div class="actions"><button id="refreshAdmin" type="button" class="primary">조회 · 새로고침</button><span class="subtle">모든 단가는 부가세 포함</span></div><p id="adminStatus" class="status" aria-live="polite"></p></div>
-<div id="adminResults" hidden><div class="totals" id="totalCards"></div><div class="panel"><div class="row"><h2>구분 · 식사 · 메뉴 · 장소별 집계</h2><button id="sendSmsButton" type="button" class="primary">📱 당일 집계 문자 발송 (Solapi)</button></div><div class="table-wrap" id="groupedTable"></div></div><div class="panel"><h2>소계</h2><div class="table-wrap" id="subtotalTable"></div></div><div class="panel" id="dailyPanel" hidden><h2>월별 날짜 합계</h2><div class="table-wrap" id="dailyTable"></div></div><div class="panel"><div class="row"><h2>신청자별 상세 내역</h2><span class="subtle">상세 검색은 집계 합계를 변경하지 않습니다.</span></div><label>사번 · 이름 · 회사명 · 소속 검색<input id="detailSearch" type="search" placeholder="검색어 입력"></label><div class="table-wrap" id="detailTable"></div><p id="cancelledCount" class="subtle"></p></div></div>
+<div id="adminResults" hidden><div class="totals" id="totalCards"></div><div class="panel"><h2>구분 · 식사 · 메뉴 · 장소별 집계</h2><div class="table-wrap" id="groupedTable"></div></div><div class="panel"><h2>소계</h2><div class="table-wrap" id="subtotalTable"></div></div><div class="panel" id="dailyPanel" hidden><h2>월별 날짜 합계</h2><div class="table-wrap" id="dailyTable"></div></div><div class="panel"><div class="row"><h2>신청자별 상세 내역</h2><span class="subtle">상세 검색은 집계 합계를 변경하지 않습니다.</span></div><label>사번 · 이름 · 회사명 · 소속 검색<input id="detailSearch" type="search" placeholder="검색어 입력"></label><div class="table-wrap" id="detailTable"></div><p id="cancelledCount" class="subtle"></p></div></div>
 <div class="panel"><h2>전체 신청 초기화</h2><p class="subtle">현재 필터와 관계없이 모든 날짜·모든 구분의 신청을 삭제합니다.</p><button id="resetAll" type="button" class="danger">전체 신청 초기화</button></div>
 </section>
 <p id="connectionStatus" class="footnote" aria-live="polite">Firebase 연결 준비 중…</p>
 </div>
 
+<!-- 저장 완료 모달 팝업 -->
 <dialog id="successDialog" class="success-dialog">
   <div class="success-icon">✓</div>
   <h2>신청 완료</h2>
@@ -53,9 +56,6 @@
 <dialog id="confirmDialog"><h2 id="confirmTitle">확인</h2><p id="confirmText" style="white-space:pre-wrap"></p><div class="actions"><button id="confirmYes" class="primary" type="button">확인</button><button id="confirmNo" type="button">취소</button></div></dialog>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import * as firestore from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 const firebaseConfig = {
  apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
  authDomain: "meal-order-9a8d1.firebaseapp.com",
@@ -65,20 +65,16 @@ const firebaseConfig = {
  appId: "1:288830614630:web:bad7a2d8c8e8a9bcf451a7",
  measurementId: "G-EMZW4X4XYP"
 };
-
 const ADMIN_PASSWORD='tngml4912!';
+const SDK_VERSION='10.12.0';
 const MENUS=['샐러드(닭가슴살)','샐러드(오리훈제)','샐러드(치킨텐더)','샌드위치(매쉬포테이토)','샌드위치(치킨텐더)','볶음밥(김치)','볶음밥(중국식)','백반'];
 const LOCATIONS=['사무실','OSBL','ISBL'];
 const MEALS={breakfast:'조식',lunch:'중식',dinner:'석식'}, GROUPS={gs:'GS직원',partner:'협력사',vip:'VIP'}, NONE='신청 안 함';
-const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('ko-KR')+'원', price=m=>m==='백반'?8000:9000;
 const iso=d=>d.toISOString().slice(0,10), addDays=(s,n)=>iso(new Date(Date.parse(s+'T00:00:00Z')+n*86400000));
 function todayKst(){return iso(new Date(Date.now()+9*3600000));}
 function firstMonday(date){const weekday=new Date(date+'T00:00:00Z').getUTCDay();return addDays(date,weekday===0?1:1-weekday);}
-
-const SOLAPI_API_KEY = 'NCSKQEZWB7QCUIOV';
-const SOLAPI_API_SECRET = 'J7SCEWLGBDTP1RDK1BHJDHDMIBPI37TT';
-const PHONE_NUMBER = '01094454912';
 
 function deadline(date,meal){
   if(meal==='lunch') return Date.parse(date+'T09:00:00+09:00');
@@ -88,9 +84,9 @@ function deadline(date,meal){
 function closed(date,meal){return Date.now()>=deadline(date,meal);}
 function mealMenus(meal){return meal==='lunch'?['백반']:MENUS.filter(m=>m!=='백반');}
 
+// 메세지 상태 및 CSS 클래스 설정 개선
 function status(id,text,type=false){
   const el=$(id);
-  if(!el) return;
   el.textContent=text;
   el.classList.remove('error','success');
   if(type===true||type==='error') el.classList.add('error');
@@ -99,16 +95,9 @@ function status(id,text,type=false){
 
 function explain(error){const code=String(error?.code??'');if(code.includes('permission-denied'))return 'Firestore 규칙에서 거절되었습니다. 마감시간 및 규칙 게시 여부를 확인해주세요.'+' ('+code+')';if(code.includes('unavailable')||code.includes('deadline-exceeded'))return '네트워크 연결 또는 Firebase 서비스 응답을 확인해주세요. ('+code+')';if(code.includes('failed-precondition'))return 'Firestore 설정 또는 인덱스를 확인해주세요. '+(error.message??'');return (error?.message??String(error))+(code?' ('+code+')':'');}
 
-let api=firestore, db=null, group='gs', week=firstMonday(todayKst()), busy=false, admin=false, adminLoading=false, mutationBusy=false, lastSubmitted=null, adminRequest=0, confirmation=null;
+let api=null,db=null,group='gs',week=firstMonday(todayKst()),busy=false,admin=false,adminLoading=false,mutationBusy=false,lastSubmitted=null,adminRequest=0,confirmation=null;
 const states={gs:{profile:{empId:'',name:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0},partner:{profile:{company:'',name:'',phone:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0},vip:{profile:{company:'',name:'',phone:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0}};
-let adminRows=[], adminDateRows=[], activeAdminLabel='';
-
-try{
-  db = api.getFirestore(initializeApp(firebaseConfig));
-  $('connectionStatus').textContent = 'Firebase 공동 저장 연결 완료 · 한국시간 마감';
-} catch(e) {
-  $('connectionStatus').textContent = 'Firebase 연동 실패: ' + e.message;
-}
+let adminRows=[],adminDateRows=[],activeAdminLabel='';
 
 try{const saved=JSON.parse(localStorage.getItem('aurora-meal-profiles-v3')||'null');if(saved){for(const g of Object.keys(states))if(saved[g])states[g].profile={...states[g].profile,...saved[g]};$('remember').checked=true;}}catch{}
 function rememberProfiles(){try{if($('remember').checked)localStorage.setItem('aurora-meal-profiles-v3',JSON.stringify(Object.fromEntries(Object.entries(states).map(([g,s])=>[g,s.profile]))));else localStorage.removeItem('aurora-meal-profiles-v3');}catch{}}
@@ -117,7 +106,7 @@ function setGroup(g){if(busy)return;group=g;for(const b of document.querySelecto
 function formProfile(g){const p={...states[g].profile};for(const k in p)p[k]=String(p[k]).trim().normalize('NFC');if(g==='gs'){if(!/^[A-Za-z0-9-]{1,30}$/.test(p.empId))throw new Error('사번은 영문·숫자·하이픈으로 1~30자 입력해주세요.');}else{p.phone=p.phone.replace(/\D/g,'');if(!p.company||p.company.length>80)throw new Error('회사명 또는 소속을 80자 이내로 입력해주세요.');if(!/^\d{8,15}$/.test(p.phone))throw new Error('연락처를 8~15자리 숫자로 입력해주세요.');}if(!p.name||p.name.length>40)throw new Error('이름을 40자 이내로 입력해주세요.');return p;}
 async function identityFor(g,p){const source=g==='gs'?[g,p.empId]:[g,p.company,p.name,p.phone];const buffer=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(source)));return Array.from(new Uint8Array(buffer),b=>b.toString(16).padStart(2,'0')).join('');}
 function normalizeDoc(doc){const d=doc.data();let g=d.group??d.category??'gs';g=Object.keys(GROUPS).includes(g)?g:Object.keys(GROUPS).find(k=>GROUPS[k]===g)??'gs';return {...d,id:doc.id,group:g,empId:d.empId??'',company:d.company??d.affiliation??'',phone:d.phone??'',menu:d.menu??NONE,location:d.location??'사무실'};}
-function syncButtons(){$('loadButton').disabled=busy||!db;$('submitButton').disabled=busy||!db;for(const b of document.querySelectorAll('[data-group],#prevWeek,#nextWeek'))b.disabled=busy;for(const input of $('identityFields').querySelectorAll('input'))input.disabled=busy;$('refreshAdmin').disabled=adminLoading||mutationBusy||!db;$('resetAll').disabled=adminLoading||mutationBusy||!db;if($('sendSmsButton'))$('sendSmsButton').disabled=adminLoading||mutationBusy;for(const b of $('detailTable').querySelectorAll('button'))b.disabled=mutationBusy||adminLoading;}
+function syncButtons(){$('loadButton').disabled=busy||!api;$('submitButton').disabled=busy||!api;for(const b of document.querySelectorAll('[data-group],#prevWeek,#nextWeek'))b.disabled=busy;for(const input of $('identityFields').querySelectorAll('input'))input.disabled=busy;$('refreshAdmin').disabled=adminLoading||mutationBusy||!api;$('resetAll').disabled=adminLoading||mutationBusy||!api;for(const b of $('detailTable').querySelectorAll('button'))b.disabled=mutationBusy||adminLoading;}
 
 function renderDays(){
   const s=states[group];
@@ -206,13 +195,13 @@ function updateDraft(key, date, meal) {
 }
 
 async function getServer(q){return api.getDocsFromServer(q);}
-async function loadOrders(){if(busy||!db)return;const g=group,s=states[g];let p;try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}busy=true;s.loaded=false;const epoch=++s.epoch;renderDays();status('employeeStatus','서버에서 기존 신청을 불러오는 중…');try{const identity=await identityFor(g,p);const request=g==='gs'?api.query(api.collection(db,'orders'),api.where('empId','==',p.empId)):api.query(api.collection(db,'orders'),api.where('requesterKey','==',identity));const snap=await getServer(request);if(epoch!==s.epoch)return;s.records=new Map();for(const doc of snap.docs){const r=normalizeDoc(doc);if(r.group===g)s.records.set(r.date+'|'+r.meal,r);}s.drafts.clear();s.profile=p;s.identity=identity;s.loaded=true;identityFields();rememberProfiles();status('employeeStatus','기존 신청 '+[...s.records.values()].filter(r=>r.menu!==NONE).length+'건을 불러왔습니다.');}catch(e){s.loaded=false;status('employeeStatus',explain(e),true);}finally{busy=false;renderDays();}}
+async function loadOrders(){if(busy||!api)return;const g=group,s=states[g];let p;try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}busy=true;s.loaded=false;const epoch=++s.epoch;renderDays();status('employeeStatus','서버에서 기존 신청을 불러오는 중…');try{const identity=await identityFor(g,p);const request=g==='gs'?api.query(api.collection(db,'orders'),api.where('empId','==',p.empId)):api.query(api.collection(db,'orders'),api.where('requesterKey','==',identity));const snap=await getServer(request);if(epoch!==s.epoch)return;s.records=new Map();for(const doc of snap.docs){const r=normalizeDoc(doc);if(r.group===g)s.records.set(r.date+'|'+r.meal,r);}s.drafts.clear();s.profile=p;s.identity=identity;s.loaded=true;identityFields();rememberProfiles();status('employeeStatus','기존 신청 '+[...s.records.values()].filter(r=>r.menu!==NONE).length+'건을 불러왔습니다.');}catch(e){s.loaded=false;status('employeeStatus',explain(e),true);}finally{busy=false;renderDays();}}
 
 function ask(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmDialog').showModal();return new Promise(resolve=>confirmation=resolve);}
 function resolveConfirm(value){$('confirmDialog').close();if(confirmation){confirmation(value);confirmation=null;}}
 
 async function submitOrders(){
-  if(busy||!db)return;
+  if(busy||!api)return;
   const g=group,s=states[g];
   let p;
   try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}
@@ -265,6 +254,7 @@ async function submitOrders(){
     s.loaded=true;
     lastSubmitted=changes.map(([key])=>key.split('|')[0]).sort()[0];
     
+    // 저장 완료 피드백 (모달 + 하단 토스트)
     const succMsg = changes.length+'건의 식사 신청이 정상 처리되었습니다.'+(expired.length?'\n(마감된 '+expired.length+'건 제외)':'');
     status('saveStatus', '✓ ' + succMsg, 'success');
     
@@ -313,109 +303,24 @@ function renderDetails(){
   syncButtons();
 }
 
-async function queryAdmin(){if(!db||!admin||mutationBusy)return;let selected;try{selected=range();}catch(e){status('adminStatus',explain(e),true);return;}const token=++adminRequest;adminLoading=true;$('adminResults').hidden=true;adminDateRows=[];adminRows=[];syncButtons();status('adminStatus','서버에서 조회 중…');try{const snap=await getServer(api.query(api.collection(db,'orders'),api.where('date','>=',selected.start),api.where('date','<=',selected.end)));if(token!==adminRequest||!admin)return;adminDateRows=snap.docs.map(normalizeDoc);activeAdminLabel=selected.label;renderAdmin();$('adminResults').hidden=false;status('adminStatus','조회 완료 · '+selected.start+' ~ '+selected.end+(adminRows.filter(r=>r.menu!==NONE).length?'':' · 신청 없음'));}catch(e){if(token===adminRequest&&admin){$('adminResults').hidden=true;status('adminStatus','조회 실패\n'+explain(e),true);}}finally{if(token===adminRequest){adminLoading=false;syncButtons();}}}
+async function queryAdmin(){if(!api||!admin||mutationBusy)return;let selected;try{selected=range();}catch(e){status('adminStatus',explain(e),true);return;}const token=++adminRequest;adminLoading=true;$('adminResults').hidden=true;adminDateRows=[];adminRows=[];syncButtons();status('adminStatus','서버에서 조회 중…');try{const snap=await getServer(api.query(api.collection(db,'orders'),api.where('date','>=',selected.start),api.where('date','<=',selected.end)));if(token!==adminRequest||!admin)return;adminDateRows=snap.docs.map(normalizeDoc);activeAdminLabel=selected.label;renderAdmin();$('adminResults').hidden=false;status('adminStatus','조회 완료 · '+selected.start+' ~ '+selected.end+(adminRows.filter(r=>r.menu!==NONE).length?'':' · 신청 없음'));}catch(e){if(token===adminRequest&&admin){$('adminResults').hidden=true;status('adminStatus','조회 실패\n'+explain(e),true);}}finally{if(token===adminRequest){adminLoading=false;syncButtons();}}}
 function invalidateEmployees(){for(const s of Object.values(states)){s.loaded=false;s.records.clear();s.epoch++;}status('employeeStatus','관리자 삭제 후에는 기존 신청을 다시 불러오세요.');renderDays();}
 async function deleteOrder(r){if(mutationBusy||adminLoading||!admin)return;mutationBusy=true;syncButtons();if(!await ask('개별 신청 삭제',r.date+' '+MEALS[r.meal]+'\n'+GROUPS[r.group]+' · '+r.name+' · '+r.menu+'\n마감 여부와 관계없이 이 신청을 삭제할까요?')){mutationBusy=false;syncButtons();return;}try{await api.deleteDoc(api.doc(db,'orders',r.id));invalidateEmployees();status('adminStatus','신청을 삭제했습니다.');}catch(e){status('adminStatus','삭제 실패\n'+explain(e),true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();}
-async function resetAll(){if(mutationBusy||adminLoading||!admin||!db)return;mutationBusy=true;syncButtons();if(!await ask('모든 신청 초기화','현재 조회 필터와 관계없이 모든 날짜·GS직원·협력사·VIP 신청을 삭제합니다.\n복구할 수 없습니다. 계속할까요?')){mutationBusy=false;syncButtons();return;}let deleted=0;try{const snap=await getServer(api.collection(db,'orders'));for(let i=0;i<snap.docs.length;i+=400){const batch=api.writeBatch(db);for(const d of snap.docs.slice(i,i+400))batch.delete(api.doc(db,'orders',d.id));await batch.commit();deleted+=Math.min(400,snap.docs.length-i);status('adminStatus','삭제 진행 중 · '+deleted+'건');}invalidateEmployees();status('adminStatus',deleted+'건 삭제 완료. 삭제 중 새로 접수된 신청은 남을 수 있습니다.');}catch(e){invalidateEmployees();status('adminStatus','전체 초기화 실패 · 확인된 삭제 '+deleted+'건\n'+explain(e)+'\n새로고침하여 남은 내역을 확인해주세요.',true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();if(!$('adminResults').hidden)status('adminStatus','전체 초기화: '+deleted+'건 삭제 확인. 최신 조회 내역을 확인해주세요.');}
+async function resetAll(){if(mutationBusy||adminLoading||!admin||!api)return;mutationBusy=true;syncButtons();if(!await ask('모든 신청 초기화','현재 조회 필터와 관계없이 모든 날짜·GS직원·협력사·VIP 신청을 삭제합니다.\n복구할 수 없습니다. 계속할까요?')){mutationBusy=false;syncButtons();return;}let deleted=0;try{const snap=await getServer(api.collection(db,'orders'));for(let i=0;i<snap.docs.length;i+=400){const batch=api.writeBatch(db);for(const d of snap.docs.slice(i,i+400))batch.delete(api.doc(db,'orders',d.id));await batch.commit();deleted+=Math.min(400,snap.docs.length-i);status('adminStatus','삭제 진행 중 · '+deleted+'건');}invalidateEmployees();status('adminStatus',deleted+'건 삭제 완료. 삭제 중 새로 접수된 신청은 남을 수 있습니다.');}catch(e){invalidateEmployees();status('adminStatus','전체 초기화 실패 · 확인된 삭제 '+deleted+'건\n'+explain(e)+'\n새로고침하여 남은 내역을 확인해주세요.',true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();if(!$('adminResults').hidden)status('adminStatus','전체 초기화: '+deleted+'건 삭제 확인. 최신 조회 내역을 확인해주세요.');}
 function leaveAdmin(){if(mutationBusy)return;admin=false;adminRequest++;adminLoading=false;$('adminScreen').hidden=true;$('employeeScreen').hidden=false;$('adminButton').textContent='관리자';renderDays();}
-
-async function getSolapiAuthHeader() {
-  const date = new Date().toISOString();
-  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-  const data = date + salt;
-  
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw', 
-    encoder.encode(SOLAPI_API_SECRET), 
-    { name: 'HMAC', hash: 'SHA-256' }, 
-    false, 
-    ['sign']
-  );
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
-  const signature = Array.from(new Uint8Array(signatureBuffer), b => b.toString(16).padStart(2, '0')).join('');
-  
-  return `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`;
-}
-
-async function sendDailySummarySms() {
-  if (adminLoading || mutationBusy) return;
-  const filter = $('queryGroup').value;
-  const orders = adminRows.filter(r => r.menu !== NONE);
-  
-  if (!orders.length) {
-    status('adminStatus', '발송할 신청 내역이 없습니다.', true);
-    return;
-  }
-
-  const queryDateStr = $('queryDate').value || todayKst();
-  const totalQty = orders.length;
-  const totalPrice = orders.reduce((a, r) => a + price(r.menu), 0);
-  
-  const grouped = aggregate(orders, ['group', 'meal', 'location', 'menu']);
-  
-  let msgBody = `[Aurora Project 식사집계]\n`;
-  msgBody += `📅 일자: ${queryDateStr}\n`;
-  msgBody += `📊 구분: ${filter === 'all' ? '전체' : GROUPS[filter]}\n`;
-  msgBody += `----------------------\n`;
-  
-  grouped.forEach(a => {
-    const gName = GROUPS[a.values[0]] || a.values[0];
-    const mName = MEALS[a.values[1]] || a.values[1];
-    const loc = a.values[2] || '사무실';
-    const menu = a.values[3];
-    msgBody += `• ${gName} | ${mName} | ${loc}\n  └ ${menu}: ${a.count}개 (${money(a.total)})\n`;
-  });
-  
-  msgBody += `----------------------\n`;
-  msgBody += `📦 총 수량: ${totalQty}개\n`;
-  msgBody += `💰 총 금액: ${money(totalPrice)}`;
-
-  const confirmed = await ask('문자 발송 확인', `다음 내용으로 문자를 발송하시겠습니까?\n수신/발신: ${PHONE_NUMBER}\n\n${msgBody}`);
-  if (!confirmed) return;
-
-  status('adminStatus', '문자 발송 중...');
-  try {
-    const authHeader = await getSolapiAuthHeader();
-    const response = await fetch('https://api.solapi.com/messages/v4/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader
-      },
-      body: JSON.stringify({
-        message: {
-          to: PHONE_NUMBER,
-          from: PHONE_NUMBER,
-          text: msgBody,
-          type: 'LMS',
-          subject: `[Aurora] ${queryDateStr} 식사 집계`
-        }
-      })
-    });
-
-    const resData = await response.json();
-    if (response.ok) {
-      status('adminStatus', '✓ 문자가 성공적으로 발송되었습니다.', 'success');
-    } else {
-      status('adminStatus', `문자 발송 실패: ${resData.errorMessage || resData.message || '오류 발생'}`, true);
-    }
-  } catch (e) {
-    status('adminStatus', `문자 발송 중 오류 발생: ${e.message}`, true);
-  }
-}
 
 for(const b of document.querySelectorAll('[data-group]'))b.onclick=()=>setGroup(b.dataset.group);
 $('remember').onchange=rememberProfiles;$('loadButton').onclick=loadOrders;$('submitButton').onclick=submitOrders;
-for(const [id,offset]of [['prevWeek',-7],['nextWeek',7]])$(id).onclick=()=>{if(!busy){week=addDays(week,offset);renderDays();}};$('adminButton').onclick=()=>{if(busy)return;if(admin)leaveAdmin();else{$('passwordError').textContent='';$('password').value='';$('passwordDialog').showModal();$('password').focus();}};
+for(const [id,offset]of [['prevWeek',-7],['nextWeek',7]])$(id).onclick=()=>{if(!busy){week=addDays(week,offset);renderDays();}};
+$('adminButton').onclick=()=>{if(busy)return;if(admin)leaveAdmin();else{$('passwordError').textContent='';$('password').value='';$('passwordDialog').showModal();$('password').focus();}};
 $('passwordForm').onsubmit=e=>{e.preventDefault();if($('password').value!==ADMIN_PASSWORD){$('passwordError').textContent='비밀번호를 확인해주세요.';return;}$('password').value='';$('passwordDialog').close();admin=true;$('employeeScreen').hidden=true;$('adminScreen').hidden=false;$('adminButton').textContent='직원 화면';$('queryDate').value=lastSubmitted??week;$('queryMonth').value=$('queryDate').value.slice(0,7);$('viewMode').value='day';$('queryGroup').value='all';$('dayField').hidden=false;$('monthField').hidden=true;$('detailSearch').value='';queryAdmin();};
 $('closePassword').onclick=()=>$('passwordDialog').close();$('leaveAdmin').onclick=leaveAdmin;$('refreshAdmin').onclick=queryAdmin;
 $('viewMode').onchange=()=>{$('dayField').hidden=$('viewMode').value!=='day';$('monthField').hidden=$('viewMode').value!=='month';queryAdmin();};$('queryDate').onchange=queryAdmin;$('queryMonth').onchange=queryAdmin;$('queryGroup').onchange=()=>{if(!adminLoading&& !$('adminResults').hidden)renderAdmin();};$('detailSearch').oninput=renderDetails;$('resetAll').onclick=resetAll;
-$('sendSmsButton').onclick=sendDailySummarySms;
 $('confirmYes').onclick=()=>resolveConfirm(true);$('confirmNo').onclick=()=>resolveConfirm(false);$('confirmDialog').addEventListener('cancel',e=>{e.preventDefault();resolveConfirm(false);});
 
 setInterval(()=>{for(const select of $('days').querySelectorAll('select'))if(!select.disabled&&closed(select.dataset.date,select.dataset.meal)){select.disabled=true;select.closest('.slot').querySelector('.slot-top span').textContent='마감';}},15000);
 setGroup('gs');$('queryDate').value=week;$('queryMonth').value=week.slice(0,7);
-syncButtons();
+
+try{const [{initializeApp},firestore]=await Promise.all([import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-app.js'),import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-firestore.js')]);api=firestore;db=api.getFirestore(initializeApp(firebaseConfig));$('connectionStatus').textContent='Firebase 공동 저장 · 한국시간 마감 · 서버 저장 성공 시 완료 표시';syncButtons();}catch(e){status('connectionStatus','Firebase SDK를 불러오지 못했습니다. 인터넷 연결과 브라우저 차단 설정을 확인해주세요. '+explain(e),true);}
 </script>
 </body></html>
