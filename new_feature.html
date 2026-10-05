@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#176447">
+<title>Aurora Project - 집계 상세 리포트</title>
+<style>
+:root{color-scheme:light;--green:#176447;--ink:#18352a;--muted:#596e63;--line:#dce5df;--bg:#f3f7f4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer;min-height:44px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:white;color:var(--ink)}
+button:hover:not(:disabled){border-color:var(--green)}
+button.primary{background:var(--green);color:white;border-color:var(--green)}
+header{background:white;border-bottom:1px solid var(--line)}
+.header{max-width:1120px;margin:auto;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand strong{font-size:19px;font-weight:650}
+.brand small{display:block;color:var(--muted);font-size:12px}
+.wrap{max-width:1120px;margin:auto;padding:22px 20px 50px}
+h1{font-size:25px;margin:0 0 16px}
+h2{font-size:19px;margin:0 0 12px}
+.subtle{color:var(--muted);font-size:14px}
+.panel{padding:20px;background:white;border:1px solid var(--line);border-radius:13px;margin-bottom:18px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+label{display:block;font-size:14px;color:var(--muted)}
+label input,label select{display:block;width:100%;margin-top:5px;min-height:44px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:white}
+.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:15px}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:15px 0}
+.total{border:1px solid var(--line);border-radius:10px;padding:14px;background:#f7faf8}
+.total strong{display:block;font-size:21px}
+.table-wrap{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:11px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:#f1f6f3;font-weight:600}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.empty{padding:20px;color:var(--muted);text-align:center}
+.status{white-space:pre-wrap;font-size:14px;margin:12px 0 0;padding:10px 14px;border-radius:8px;background:#eef6f2;border:1px solid #cce3d7;color:var(--green)}
+.status.error{background:#fdf2f2;border-color:#f5c6cb;color:#ae2830}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header">
+    <div class="brand">
+      <div>
+        <strong>Aurora Project</strong>
+        <small>식사 신청 집계 전용 리포트</small>
+      </div>
+    </div>
+    <!-- 기존 메인 관리자 페이지로 돌아가는 버튼 -->
+    <button id="backButton" type="button">← 메인 관리자로 돌아가기</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="row">
+    <h1>구분 · 식사 · 메뉴 · 장소별 집계 리포트</h1>
+  </div>
+
+  <!-- 조회 필터 영역 -->
+  <div class="panel">
+    <div class="fields">
+      <label>조회 방식
+        <select id="viewMode">
+          <option value="day">일별</option>
+          <option value="month">월별</option>
+        </select>
+      </label>
+      <label id="dayField">조회 날짜
+        <input id="queryDate" type="date">
+      </label>
+      <label id="monthField" hidden>조회 연월
+        <input id="queryMonth" type="month">
+      </label>
+      <label>신청자 구분
+        <select id="queryGroup">
+          <option value="all">전체</option>
+          <option value="gs">GS직원</option>
+          <option value="partner">협력사</option>
+          <option value="vip">VIP</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="refreshAdmin" type="button" class="primary">조회 · 새로고침</button>
+      <span class="subtle">모든 단가는 부가세 포함</span>
+    </div>
+    <p id="adminStatus" class="status" aria-live="polite">데이터 조회 준비 중…</p>
+  </div>
+
+  <!-- 결과 집계 영역 -->
+  <div id="adminResults" hidden>
+    <!-- 요약 총계 카드 -->
+    <div class="totals" id="totalCards"></div>
+
+    <!-- 핵심 집계 테이블: 구분 · 식사 · 메뉴 · 장소별 -->
+    <div class="panel">
+      <h2>구분 · 식사 · 메뉴 · 장소별 상세 집계</h2>
+      <div class="table-wrap" id="groupedTable"></div>
+    </div>
+
+    <!-- 소계 테이블 -->
+    <div class="panel">
+      <h2>소계</h2>
+      <div class="table-wrap" id="subtotalTable"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const firebaseConfig = {
+  apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
+  authDomain: "meal-order-9a8d1.firebaseapp.com",
+  projectId: "meal-order-9a8d1",
+  storageBucket: "meal-order-9a8d1.firebasestorage.app",
+  messagingSenderId: "288830614630",
+  appId: "1:288830614630:web:bad7a2d8c8e8a9bcf451a7",
+  measurementId: "G-EMZW4X4XYP"
+};
+const SDK_VERSION = '10.12.0';
+const MEALS = {breakfast:'조식', lunch:'중식', dinner:'석식'};
+const GROUPS = {gs:'GS직원', partner:'협력사', vip:'VIP'};
+const NONE = '신청 안 함';
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => Number(n).toLocaleString('ko-KR')+'원';
+const price = m => m === '백반' ? 8000 : 9000;
+const iso = d => d.toISOString().slice(0, 10);
+
+function todayKst() { return iso(new Date(Date.now() + 9 * 3600000)); }
+
+function status(text, isError = false) {
+  const el = $('adminStatus');
+  el.textContent = text;
+  el.classList.toggle('error', isError);
+}
+
+function normalizeDoc(doc) {
+  const d = doc.data();
+  let g = d.group ?? d.category ?? 'gs';
+  g = Object.keys(GROUPS).includes(g) ? g : Object.keys(GROUPS).find(k => GROUPS[k] === g) ?? 'gs';
+  return { ...d, id: doc.id, group: g, menu: d.menu ?? NONE, location: d.location ?? '사무실' };
+}
+
+function table(headers, rows) {
+  if (!rows.length) return '<div class="empty">신청 내역이 없습니다.</div>';
+  return '<table><thead><tr>' + headers.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>' + row.map(cell => '<td' + (typeof cell === 'number' ? ' class="num"' : '') + '>' + esc(cell) + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table>';
+}
+
+function aggregate(rows, fields) {
+  const result = new Map();
+  for (const r of rows) {
+    const values = fields.map(f => r[f]);
+    const key = JSON.stringify(values);
+    if (!result.has(key)) result.set(key, { values, count: 0, total: 0 });
+    const a = result.get(key);
+    a.count++;
+    a.total += price(r.menu);
+  }
+  return [...result.values()].sort((a, b) => JSON.stringify(a.values).localeCompare(JSON.stringify(b.values), 'ko'));
+}
+
+let api = null, db = null, adminDateRows = [], activeAdminLabel = '';
+
+function range() {
+  if ($('viewMode').value === 'month') {
+    const month = $('queryMonth').value;
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('조회 연월을 선택해주세요.');
+    const [y, m] = month.split('-').map(Number);
+    const end = iso(new Date(Date.UTC(y, m, 0)));
+    return { start: month + '-01', end, label: month + ' 월별' };
+  }
+  const date = $('queryDate').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('조회 날짜를 선택해주세요.');
+  return { start: date, end: date, label: date + ' 일별' };
+}
+
+function renderAdmin() {
+  const filter = $('queryGroup').value;
+  const rows = adminDateRows.filter(r => filter === 'all' || r.group === filter);
+  const orders = rows.filter(r => r.menu !== NONE);
+  const total = orders.reduce((a, r) => a + price(r.menu), 0);
+
+  $('totalCards').innerHTML = 
+    '<div class="total"><span class="subtle">' + esc(activeAdminLabel) + ' · ' + esc(filter === 'all' ? '전체' : GROUPS[filter]) + '</span><strong>' + orders.length.toLocaleString() + '개</strong></div>' +
+    '<div class="total"><span class="subtle">총 금액 · 부가세 포함</span><strong>' + money(total) + '</strong></div>';
+
+  // 구분 · 식사 · 장소 · 메뉴별 상세 테이블
+  $('groupedTable').innerHTML = table(
+    ['신청자 구분', '식사', '장소', '메뉴', '수량', '단가', '금액'],
+    aggregate(orders, ['group', 'meal', 'location', 'menu']).map(a => [
+      GROUPS[a.values[0]],
+      MEALS[a.values[1]] ?? a.values[1],
+      a.values[2] || '사무실',
+      a.values[3],
+      a.count,
+      money(price(a.values[3])),
+      money(a.total)
+    ])
+  );
+
+  // 소계 테이블
+  const subs = [];
+  for (const [field, label, map] of [['group', '구분별', GROUPS], ['meal', '식사별', MEALS], ['location', '장소별', null], ['menu', '메뉴별', null]]) {
+    for (const a of aggregate(orders, [field])) subs.push([label, map?.[a.values[0]] ?? a.values[0], a.count, money(a.total)]);
+  }
+  subs.push(['전체 합계', '조회 조건 전체', orders.length, money(total)]);
+  $('subtotalTable').innerHTML = table(['소계 구분', '항목', '수량', '금액'], subs);
+}
+
+async function queryAdmin() {
+  if (!api) return;
+  let selected;
+  try { selected = range(); } catch (e) { status(e.message, true); return; }
+  
+  $('adminResults').hidden = true;
+  status('서버에서 집계 데이터를 불러오는 중…');
+  
+  try {
+    const snap = await api.getDocsFromServer(api.query(api.collection(db, 'orders'), api.where('date', '>=', selected.start), api.where('date', '<=', selected.end)));
+    adminDateRows = snap.docs.map(normalizeDoc);
+    activeAdminLabel = selected.label;
+    renderAdmin();
+    $('adminResults').hidden = false;
+    status('조회 완료 · ' + selected.start + ' ~ ' + selected.end);
+  } catch (e) {
+    status('조회 실패: ' + e.message, true);
+  }
+}
+
+// 이벤트 연결
+$('backButton').onclick = () => window.location.href = './index.html'; // 기존 페이지 파일명에 맞게 조정
+$('refreshAdmin').onclick = queryAdmin;
+$('viewMode').onchange = () => {
+  $('dayField').hidden = $('viewMode').value !== 'day';
+  $('monthField').hidden = $('viewMode').value !== 'month';
+  queryAdmin();
+};
+$('queryDate').onchange = queryAdmin;
+$('queryMonth').onchange = queryAdmin;
+$('queryGroup').onchange = renderAdmin;
+
+// 초기화 설정
+const today = todayKst();
+$('queryDate').value = today;
+$('queryMonth').value = today.slice(0, 7);
+
+try {
+  const [{ initializeApp }, firestore] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/' + SDK_VERSION + '/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/' + SDK_VERSION + '/firebase-firestore.js')
+  ]);
+  api = firestore;
+  db = api.getFirestore(initializeApp(firebaseConfig));
+  queryAdmin();
+} catch (e) {
+  status('Firebase 불러오기 실패: ' + e.message, true);
+}
+</script>
+</body>
+</html>
