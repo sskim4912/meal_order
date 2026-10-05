@@ -53,6 +53,9 @@
 <dialog id="confirmDialog"><h2 id="confirmTitle">확인</h2><p id="confirmText" style="white-space:pre-wrap"></p><div class="actions"><button id="confirmYes" class="primary" type="button">확인</button><button id="confirmNo" type="button">취소</button></div></dialog>
 
 <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import * as firestore from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 const firebaseConfig = {
  apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
  authDomain: "meal-order-9a8d1.firebaseapp.com",
@@ -62,8 +65,8 @@ const firebaseConfig = {
  appId: "1:288830614630:web:bad7a2d8c8e8a9bcf451a7",
  measurementId: "G-EMZW4X4XYP"
 };
+
 const ADMIN_PASSWORD='tngml4912!';
-const SDK_VERSION='10.12.0';
 const MENUS=['샐러드(닭가슴살)','샐러드(오리훈제)','샐러드(치킨텐더)','샌드위치(매쉬포테이토)','샌드위치(치킨텐더)','볶음밥(김치)','볶음밥(중국식)','백반'];
 const LOCATIONS=['사무실','OSBL','ISBL'];
 const MEALS={breakfast:'조식',lunch:'중식',dinner:'석식'}, GROUPS={gs:'GS직원',partner:'협력사',vip:'VIP'}, NONE='신청 안 함';
@@ -73,7 +76,6 @@ const iso=d=>d.toISOString().slice(0,10), addDays=(s,n)=>iso(new Date(Date.parse
 function todayKst(){return iso(new Date(Date.now()+9*3600000));}
 function firstMonday(date){const weekday=new Date(date+'T00:00:00Z').getUTCDay();return addDays(date,weekday===0?1:1-weekday);}
 
-// SOLAPI 인증 및 발신/수신 정보
 const SOLAPI_API_KEY = 'NCSKQEZWB7QCUIOV';
 const SOLAPI_API_SECRET = 'J7SCEWLGBDTP1RDK1BHJDHDMIBPI37TT';
 const PHONE_NUMBER = '01094454912';
@@ -88,6 +90,7 @@ function mealMenus(meal){return meal==='lunch'?['백반']:MENUS.filter(m=>m!=='�
 
 function status(id,text,type=false){
   const el=$(id);
+  if(!el) return;
   el.textContent=text;
   el.classList.remove('error','success');
   if(type===true||type==='error') el.classList.add('error');
@@ -96,9 +99,16 @@ function status(id,text,type=false){
 
 function explain(error){const code=String(error?.code??'');if(code.includes('permission-denied'))return 'Firestore 규칙에서 거절되었습니다. 마감시간 및 규칙 게시 여부를 확인해주세요.'+' ('+code+')';if(code.includes('unavailable')||code.includes('deadline-exceeded'))return '네트워크 연결 또는 Firebase 서비스 응답을 확인해주세요. ('+code+')';if(code.includes('failed-precondition'))return 'Firestore 설정 또는 인덱스를 확인해주세요. '+(error.message??'');return (error?.message??String(error))+(code?' ('+code+')':'');}
 
-let api=null,db=null,group='gs',week=firstMonday(todayKst()),busy=false,admin=false,adminLoading=false,mutationBusy=false,lastSubmitted=null,adminRequest=0,confirmation=null;
+let api=firestore, db=null, group='gs', week=firstMonday(todayKst()), busy=false, admin=false, adminLoading=false, mutationBusy=false, lastSubmitted=null, adminRequest=0, confirmation=null;
 const states={gs:{profile:{empId:'',name:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0},partner:{profile:{company:'',name:'',phone:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0},vip:{profile:{company:'',name:'',phone:''},loaded:false,identity:null,records:new Map(),drafts:new Map(),epoch:0}};
-let adminRows=[],adminDateRows=[],activeAdminLabel='';
+let adminRows=[], adminDateRows=[], activeAdminLabel='';
+
+try{
+  db = api.getFirestore(initializeApp(firebaseConfig));
+  $('connectionStatus').textContent = 'Firebase 공동 저장 연결 완료 · 한국시간 마감';
+} catch(e) {
+  $('connectionStatus').textContent = 'Firebase 연동 실패: ' + e.message;
+}
 
 try{const saved=JSON.parse(localStorage.getItem('aurora-meal-profiles-v3')||'null');if(saved){for(const g of Object.keys(states))if(saved[g])states[g].profile={...states[g].profile,...saved[g]};$('remember').checked=true;}}catch{}
 function rememberProfiles(){try{if($('remember').checked)localStorage.setItem('aurora-meal-profiles-v3',JSON.stringify(Object.fromEntries(Object.entries(states).map(([g,s])=>[g,s.profile]))));else localStorage.removeItem('aurora-meal-profiles-v3');}catch{}}
@@ -107,7 +117,7 @@ function setGroup(g){if(busy)return;group=g;for(const b of document.querySelecto
 function formProfile(g){const p={...states[g].profile};for(const k in p)p[k]=String(p[k]).trim().normalize('NFC');if(g==='gs'){if(!/^[A-Za-z0-9-]{1,30}$/.test(p.empId))throw new Error('사번은 영문·숫자·하이픈으로 1~30자 입력해주세요.');}else{p.phone=p.phone.replace(/\D/g,'');if(!p.company||p.company.length>80)throw new Error('회사명 또는 소속을 80자 이내로 입력해주세요.');if(!/^\d{8,15}$/.test(p.phone))throw new Error('연락처를 8~15자리 숫자로 입력해주세요.');}if(!p.name||p.name.length>40)throw new Error('이름을 40자 이내로 입력해주세요.');return p;}
 async function identityFor(g,p){const source=g==='gs'?[g,p.empId]:[g,p.company,p.name,p.phone];const buffer=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(source)));return Array.from(new Uint8Array(buffer),b=>b.toString(16).padStart(2,'0')).join('');}
 function normalizeDoc(doc){const d=doc.data();let g=d.group??d.category??'gs';g=Object.keys(GROUPS).includes(g)?g:Object.keys(GROUPS).find(k=>GROUPS[k]===g)??'gs';return {...d,id:doc.id,group:g,empId:d.empId??'',company:d.company??d.affiliation??'',phone:d.phone??'',menu:d.menu??NONE,location:d.location??'사무실'};}
-function syncButtons(){$('loadButton').disabled=busy||!api;$('submitButton').disabled=busy||!api;for(const b of document.querySelectorAll('[data-group],#prevWeek,#nextWeek'))b.disabled=busy;for(const input of $('identityFields').querySelectorAll('input'))input.disabled=busy;$('refreshAdmin').disabled=adminLoading||mutationBusy||!api;$('resetAll').disabled=adminLoading||mutationBusy||!api;if($('sendSmsButton'))$('sendSmsButton').disabled=adminLoading||mutationBusy;for(const b of $('detailTable').querySelectorAll('button'))b.disabled=mutationBusy||adminLoading;}
+function syncButtons(){$('loadButton').disabled=busy||!db;$('submitButton').disabled=busy||!db;for(const b of document.querySelectorAll('[data-group],#prevWeek,#nextWeek'))b.disabled=busy;for(const input of $('identityFields').querySelectorAll('input'))input.disabled=busy;$('refreshAdmin').disabled=adminLoading||mutationBusy||!db;$('resetAll').disabled=adminLoading||mutationBusy||!db;if($('sendSmsButton'))$('sendSmsButton').disabled=adminLoading||mutationBusy;for(const b of $('detailTable').querySelectorAll('button'))b.disabled=mutationBusy||adminLoading;}
 
 function renderDays(){
   const s=states[group];
@@ -196,13 +206,13 @@ function updateDraft(key, date, meal) {
 }
 
 async function getServer(q){return api.getDocsFromServer(q);}
-async function loadOrders(){if(busy||!api)return;const g=group,s=states[g];let p;try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}busy=true;s.loaded=false;const epoch=++s.epoch;renderDays();status('employeeStatus','서버에서 기존 신청을 불러오는 중…');try{const identity=await identityFor(g,p);const request=g==='gs'?api.query(api.collection(db,'orders'),api.where('empId','==',p.empId)):api.query(api.collection(db,'orders'),api.where('requesterKey','==',identity));const snap=await getServer(request);if(epoch!==s.epoch)return;s.records=new Map();for(const doc of snap.docs){const r=normalizeDoc(doc);if(r.group===g)s.records.set(r.date+'|'+r.meal,r);}s.drafts.clear();s.profile=p;s.identity=identity;s.loaded=true;identityFields();rememberProfiles();status('employeeStatus','기존 신청 '+[...s.records.values()].filter(r=>r.menu!==NONE).length+'건을 불러왔습니다.');}catch(e){s.loaded=false;status('employeeStatus',explain(e),true);}finally{busy=false;renderDays();}}
+async function loadOrders(){if(busy||!db)return;const g=group,s=states[g];let p;try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}busy=true;s.loaded=false;const epoch=++s.epoch;renderDays();status('employeeStatus','서버에서 기존 신청을 불러오는 중…');try{const identity=await identityFor(g,p);const request=g==='gs'?api.query(api.collection(db,'orders'),api.where('empId','==',p.empId)):api.query(api.collection(db,'orders'),api.where('requesterKey','==',identity));const snap=await getServer(request);if(epoch!==s.epoch)return;s.records=new Map();for(const doc of snap.docs){const r=normalizeDoc(doc);if(r.group===g)s.records.set(r.date+'|'+r.meal,r);}s.drafts.clear();s.profile=p;s.identity=identity;s.loaded=true;identityFields();rememberProfiles();status('employeeStatus','기존 신청 '+[...s.records.values()].filter(r=>r.menu!==NONE).length+'건을 불러왔습니다.');}catch(e){s.loaded=false;status('employeeStatus',explain(e),true);}finally{busy=false;renderDays();}}
 
 function ask(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmDialog').showModal();return new Promise(resolve=>confirmation=resolve);}
 function resolveConfirm(value){$('confirmDialog').close();if(confirmation){confirmation(value);confirmation=null;}}
 
 async function submitOrders(){
-  if(busy||!api)return;
+  if(busy||!db)return;
   const g=group,s=states[g];
   let p;
   try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}
@@ -303,13 +313,12 @@ function renderDetails(){
   syncButtons();
 }
 
-async function queryAdmin(){if(!api||!admin||mutationBusy)return;let selected;try{selected=range();}catch(e){status('adminStatus',explain(e),true);return;}const token=++adminRequest;adminLoading=true;$('adminResults').hidden=true;adminDateRows=[];adminRows=[];syncButtons();status('adminStatus','서버에서 조회 중…');try{const snap=await getServer(api.query(api.collection(db,'orders'),api.where('date','>=',selected.start),api.where('date','<=',selected.end)));if(token!==adminRequest||!admin)return;adminDateRows=snap.docs.map(normalizeDoc);activeAdminLabel=selected.label;renderAdmin();$('adminResults').hidden=false;status('adminStatus','조회 완료 · '+selected.start+' ~ '+selected.end+(adminRows.filter(r=>r.menu!==NONE).length?'':' · 신청 없음'));}catch(e){if(token===adminRequest&&admin){$('adminResults').hidden=true;status('adminStatus','조회 실패\n'+explain(e),true);}}finally{if(token===adminRequest){adminLoading=false;syncButtons();}}}
+async function queryAdmin(){if(!db||!admin||mutationBusy)return;let selected;try{selected=range();}catch(e){status('adminStatus',explain(e),true);return;}const token=++adminRequest;adminLoading=true;$('adminResults').hidden=true;adminDateRows=[];adminRows=[];syncButtons();status('adminStatus','서버에서 조회 중…');try{const snap=await getServer(api.query(api.collection(db,'orders'),api.where('date','>=',selected.start),api.where('date','<=',selected.end)));if(token!==adminRequest||!admin)return;adminDateRows=snap.docs.map(normalizeDoc);activeAdminLabel=selected.label;renderAdmin();$('adminResults').hidden=false;status('adminStatus','조회 완료 · '+selected.start+' ~ '+selected.end+(adminRows.filter(r=>r.menu!==NONE).length?'':' · 신청 없음'));}catch(e){if(token===adminRequest&&admin){$('adminResults').hidden=true;status('adminStatus','조회 실패\n'+explain(e),true);}}finally{if(token===adminRequest){adminLoading=false;syncButtons();}}}
 function invalidateEmployees(){for(const s of Object.values(states)){s.loaded=false;s.records.clear();s.epoch++;}status('employeeStatus','관리자 삭제 후에는 기존 신청을 다시 불러오세요.');renderDays();}
 async function deleteOrder(r){if(mutationBusy||adminLoading||!admin)return;mutationBusy=true;syncButtons();if(!await ask('개별 신청 삭제',r.date+' '+MEALS[r.meal]+'\n'+GROUPS[r.group]+' · '+r.name+' · '+r.menu+'\n마감 여부와 관계없이 이 신청을 삭제할까요?')){mutationBusy=false;syncButtons();return;}try{await api.deleteDoc(api.doc(db,'orders',r.id));invalidateEmployees();status('adminStatus','신청을 삭제했습니다.');}catch(e){status('adminStatus','삭제 실패\n'+explain(e),true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();}
-async function resetAll(){if(mutationBusy||adminLoading||!admin||!api)return;mutationBusy=true;syncButtons();if(!await ask('모든 신청 초기화','현재 조회 필터와 관계없이 모든 날짜·GS직원·협력사·VIP 신청을 삭제합니다.\n복구할 수 없습니다. 계속할까요?')){mutationBusy=false;syncButtons();return;}let deleted=0;try{const snap=await getServer(api.collection(db,'orders'));for(let i=0;i<snap.docs.length;i+=400){const batch=api.writeBatch(db);for(const d of snap.docs.slice(i,i+400))batch.delete(api.doc(db,'orders',d.id));await batch.commit();deleted+=Math.min(400,snap.docs.length-i);status('adminStatus','삭제 진행 중 · '+deleted+'건');}invalidateEmployees();status('adminStatus',deleted+'건 삭제 완료. 삭제 중 새로 접수된 신청은 남을 수 있습니다.');}catch(e){invalidateEmployees();status('adminStatus','전체 초기화 실패 · 확인된 삭제 '+deleted+'건\n'+explain(e)+'\n새로고침하여 남은 내역을 확인해주세요.',true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();if(!$('adminResults').hidden)status('adminStatus','전체 초기화: '+deleted+'건 삭제 확인. 최신 조회 내역을 확인해주세요.');}
+async function resetAll(){if(mutationBusy||adminLoading||!admin||!db)return;mutationBusy=true;syncButtons();if(!await ask('모든 신청 초기화','현재 조회 필터와 관계없이 모든 날짜·GS직원·협력사·VIP 신청을 삭제합니다.\n복구할 수 없습니다. 계속할까요?')){mutationBusy=false;syncButtons();return;}let deleted=0;try{const snap=await getServer(api.collection(db,'orders'));for(let i=0;i<snap.docs.length;i+=400){const batch=api.writeBatch(db);for(const d of snap.docs.slice(i,i+400))batch.delete(api.doc(db,'orders',d.id));await batch.commit();deleted+=Math.min(400,snap.docs.length-i);status('adminStatus','삭제 진행 중 · '+deleted+'건');}invalidateEmployees();status('adminStatus',deleted+'건 삭제 완료. 삭제 중 새로 접수된 신청은 남을 수 있습니다.');}catch(e){invalidateEmployees();status('adminStatus','전체 초기화 실패 · 확인된 삭제 '+deleted+'건\n'+explain(e)+'\n새로고침하여 남은 내역을 확인해주세요.',true);mutationBusy=false;syncButtons();return;}mutationBusy=false;await queryAdmin();if(!$('adminResults').hidden)status('adminStatus','전체 초기화: '+deleted+'건 삭제 확인. 최신 조회 내역을 확인해주세요.');}
 function leaveAdmin(){if(mutationBusy)return;admin=false;adminRequest++;adminLoading=false;$('adminScreen').hidden=true;$('employeeScreen').hidden=false;$('adminButton').textContent='관리자';renderDays();}
 
-// Solapi HMAC-SHA256 인증 헤더 생성
 async function getSolapiAuthHeader() {
   const date = new Date().toISOString();
   const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
@@ -329,7 +338,6 @@ async function getSolapiAuthHeader() {
   return `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`;
 }
 
-// 당일 집계 문자 발송
 async function sendDailySummarySms() {
   if (adminLoading || mutationBusy) return;
   const filter = $('queryGroup').value;
@@ -408,7 +416,6 @@ $('confirmYes').onclick=()=>resolveConfirm(true);$('confirmNo').onclick=()=>reso
 
 setInterval(()=>{for(const select of $('days').querySelectorAll('select'))if(!select.disabled&&closed(select.dataset.date,select.dataset.meal)){select.disabled=true;select.closest('.slot').querySelector('.slot-top span').textContent='마감';}},15000);
 setGroup('gs');$('queryDate').value=week;$('queryMonth').value=week.slice(0,7);
-
-try{const [{initializeApp},firestore]=await Promise.all([import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-app.js'),import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-firestore.js')]);api=firestore;db=api.getFirestore(initializeApp(firebaseConfig));$('connectionStatus').textContent='Firebase 공동 저장 · 한국시간 마감 · 서버 저장 성공 시 완료 표시';syncButtons();}catch(e){status('connectionStatus','Firebase SDK를 불러오지 못했습니다. 인터넷 연결과 브라우저 차단 설정을 확인해주세요. '+explain(e),true);}
+syncButtons();
 </script>
 </body></html>
