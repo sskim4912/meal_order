@@ -14,8 +14,8 @@ button{cursor:pointer;min-height:44px;border:1px solid var(--line);border-radius
 button:hover:not(:disabled){border-color:var(--green)}
 button:disabled{cursor:default;opacity:.55}
 button.primary{background:var(--green);color:white;border-color:var(--green)}
-button.send-sms{background:#0288d1;color:white;border-color:#0288d1}
-button.send-sms:hover:not(:disabled){border-color:#01579b;background:#0277bd}
+button.send-sms{background:#18352a;color:white;border-color:#18352a}
+button.send-sms:hover:not(:disabled){background:#0f241c}
 header{background:white;border-bottom:1px solid var(--line)}
 .header{max-width:1120px;margin:auto;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .brand{display:flex;align-items:center;gap:12px}
@@ -42,7 +42,6 @@ th{background:#f1f6f3;font-weight:600}
 .empty{padding:20px;color:var(--muted);text-align:center}
 .status{white-space:pre-wrap;font-size:14px;margin:12px 0 0;padding:10px 14px;border-radius:8px;background:#eef6f2;border:1px solid #cce3d7;color:var(--green)}
 .status.error{background:#fdf2f2;border-color:#f5c6cb;color:#ae2830}
-.status.success{background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20;font-weight:600}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -91,8 +90,7 @@ th{background:#f1f6f3;font-weight:600}
     </div>
     <div class="actions">
       <button id="refreshAdmin" type="button" class="primary">조회 · 새로고침</button>
-      <!-- Solapi 문자 발송 버튼 -->
-      <button id="sendSmsButton" type="button" class="send-sms" disabled>📱 집계 내역 문자 발송 (010-9445-4912)</button>
+      <button id="sendSmsButton" type="button" class="send-sms">📱 집계 문자 발송 (01094454912)</button>
       <span class="subtle">모든 단가는 부가세 포함</span>
     </div>
     <p id="adminStatus" class="status" aria-live="polite">데이터 조회 준비 중…</p>
@@ -116,15 +114,14 @@ th{background:#f1f6f3;font-weight:600}
 
 <script type="module">
 // ==========================================
-// 1. Solapi 설정 정보 (본인의 키로 변경해 주세요)
+// 1. Solapi 설정 (본인의 Key 값으로 설정해 주세요)
 // ==========================================
 const SOLAPI_API_KEY = "NCSKQEZWB7QCUIOV";
 const SOLAPI_API_SECRET = "J7SCEWLGBDTP1RDK1BHJDHDMIBPI37TT";
-const SENDER_NUMBER = "01094454912";
-const RECEIVER_NUMBER = "01094454912";
+const PHONE_NUMBER = "01094454912";
 
 // ==========================================
-// 2. Firebase 설정 정보
+// 2. Firebase 설정
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
@@ -148,12 +145,10 @@ const iso = d => d.toISOString().slice(0, 10);
 
 function todayKst() { return iso(new Date(Date.now() + 9 * 3600000)); }
 
-function status(text, type = false) {
+function status(text, isError = false) {
   const el = $('adminStatus');
   el.textContent = text;
-  el.classList.remove('error', 'success');
-  if (type === true || type === 'error') el.classList.add('error');
-  else if (type === 'success') el.classList.add('success');
+  el.classList.toggle('error', isError);
 }
 
 function normalizeDoc(doc) {
@@ -183,7 +178,7 @@ function aggregate(rows, fields) {
   return [...result.values()].sort((a, b) => JSON.stringify(a.values).localeCompare(JSON.stringify(b.values), 'ko'));
 }
 
-let api = null, db = null, adminDateRows = [], activeAdminLabel = '', currentAggregatedData = [];
+let api = null, db = null, adminDateRows = [], activeAdminLabel = '';
 
 function range() {
   if ($('viewMode').value === 'month') {
@@ -208,11 +203,9 @@ function renderAdmin() {
     '<div class="total"><span class="subtle">' + esc(activeAdminLabel) + ' · ' + esc(filter === 'all' ? '전체' : GROUPS[filter]) + '</span><strong>' + orders.length.toLocaleString() + '개</strong></div>' +
     '<div class="total"><span class="subtle">총 금액 · 부가세 포함</span><strong>' + money(total) + '</strong></div>';
 
-  currentAggregatedData = aggregate(orders, ['group', 'meal', 'location', 'menu']);
-
   $('groupedTable').innerHTML = table(
     ['신청자 구분', '식사', '장소', '메뉴', '수량', '단가', '금액'],
-    currentAggregatedData.map(a => [
+    aggregate(orders, ['group', 'meal', 'location', 'menu']).map(a => [
       GROUPS[a.values[0]],
       MEALS[a.values[1]] ?? a.values[1],
       a.values[2] || '사무실',
@@ -229,8 +222,6 @@ function renderAdmin() {
   }
   subs.push(['전체 합계', '조회 조건 전체', orders.length, money(total)]);
   $('subtotalTable').innerHTML = table(['소계 구분', '항목', '수량', '금액'], subs);
-
-  $('sendSmsButton').disabled = orders.length === 0;
 }
 
 async function queryAdmin() {
@@ -239,7 +230,6 @@ async function queryAdmin() {
   try { selected = range(); } catch (e) { status(e.message, true); return; }
   
   $('adminResults').hidden = true;
-  $('sendSmsButton').disabled = true;
   status('서버에서 집계 데이터를 불러오는 중…');
   
   try {
@@ -255,11 +245,12 @@ async function queryAdmin() {
 }
 
 // ==========================================
-// 3. Solapi 인증 헤더 및 문자 발송 로직
+// 3. Solapi HMAC Authorization Header 생성 로직
 // ==========================================
-async function getSolapiAuthHeader() {
+async function generateSolapiHeader() {
   const date = new Date().toISOString();
-  const salt = Math.random().toString(36).substring(2, 12);
+  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
   const data = date + salt;
 
   const encoder = new TextEncoder();
@@ -269,28 +260,43 @@ async function getSolapiAuthHeader() {
     false, ["sign"]
   );
   const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-  const signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStartSolapi(솔라피) API를 이용하여 **구분 · 식사 · 메뉴 · 장소별 집계 내역을 문자(LMS)로 발송하는 기능**을 추가하는 방법입니다.
+  const signature = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart별도의 백엔드 서버 없이 HTML 단일 파일 내에서 **Solapi API Key와 Secret Key**를 사용하여 **HMAC SHA-256 서명(Signature)을 직접 생성**하고 바로 문자를 발송하는 수정된 `admin_summary.html` 코드입니다.
+
+Solapi v4 REST API 규격에 따라 브라우저의 Web Crypto API(`window.crypto.subtle`)를 활용하여 서명을 생성하도록 구현했습니다.
 
 ---
 
-### ⚠️ 보안 및 구현 구조 주의사항
+### `admin_summary.html` (전체 수정 코드)
 
-Solapi와 같은 SMS API는 **API Key**와 **Secret Key**를 사용합니다. 브라우저(클라이언트 HTML)에서 이를 직접 호출할 경우 인증 키가 외부에 노출되는 보안 위험이 있으며, Solapi 서버에서 CORS 제한으로 인해 요청이 블록될 수 있습니다.
-
-따라서 **Firebase Cloud Functions** 또는 **자체 백엔드 서버**를 거쳐 발송하는 것이 권장되지만, **테스트 및 단일 파일 환경**에서 바로 동작시킬 수 있도록 두 가지 방법을 안내해 드립니다.
-
----
-
-### 1. `admin_summary.html` 코드 수정 (클라이언트 영역)
-
-새로 만든 `admin_summary.html` 파일에 **"집계 내역 문자 발송"** 버튼과 발송 로직을 추가합니다.
-
-#### **HTML 버튼 추가 (조회 필터 `.actions` 영역)**
+상단의 `SOLAPI_API_KEY`와 `SOLAPI_API_SECRET` 부분에 실제 발급받으신 키를 입력하신 뒤 저장해 주세요.
 
 ```html
-<div class="actions">
-  <button id="refreshAdmin" type="button" class="primary">조회 · 새로고침</button>
-  <!-- 문자 발송 버튼 추가 -->
-  <button id="sendSmsButton" type="button" style="background:#18352a; color:white;">문자로 집계 발송</button>
-  <span class="subtle">모든 단가는 부가세 포함</span>
-</div>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#176447">
+<title>Aurora Project - 집계 상세 리포트</title>
+<style>
+:root{color-scheme:light;--green:#176447;--ink:#18352a;--muted:#596e63;--line:#dce5df;--bg:#f3f7f4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer;min-height:44px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:white;color:var(--ink)}
+button:hover:not(:disabled){border-color:var(--green)}
+button:disabled{cursor:default;opacity:.55}
+button.primary{background:var(--green);color:white;border-color:var(--green)}
+button.send-sms{background:#18352a;color:white;border-color:#18352a}
+button.send-sms:hover:not(:disabled){background:#0f241c}
+header{background:white;border-bottom:1px solid var(--line)}
+.header{max-width:1120px;margin:auto;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand strong{font-size:19px;font-weight:650}
+.brand small{display:block;color:var(--muted);font-size:12px}
+.wrap{max-width:1120px;margin:auto;padding:22px 20px 50px}
+h1{font-size:25px;margin:0 0 16px}
+h2{font-size:19px;margin:0 0 12px}
+.subtle{color:var(--muted);font-size:14px}
+.panel{padding:20px;background:white;border:1px solid var
