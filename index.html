@@ -64,6 +64,8 @@
 <dialog id="confirmDialog"><h2 id="confirmTitle">확인</h2><p id="confirmText" style="white-space:pre-wrap"></p><div class="actions"><button id="confirmYes" class="primary" type="button">확인</button><button id="confirmNo" type="button">취소</button></div></dialog>
 
 <script type="module">
+
+  
 const firebaseConfig = {
  apiKey: "AIzaSyCjApU9C_w1LEmQEvRqUsjI5MyILAvE4Vc",
  authDomain: "meal-order-9a8d1.firebaseapp.com",
@@ -330,5 +332,15 @@ setInterval(()=>{for(const select of $('days').querySelectorAll('select'))if(!se
 setGroup('gs');$('queryDate').value=week;$('queryMonth').value=week.slice(0,7);
 
 try{const [{initializeApp},firestore]=await Promise.all([import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-app.js'),import('https://www.gstatic.com/firebasejs/'+SDK_VERSION+'/firebase-firestore.js')]);api=firestore;db=api.getFirestore(initializeApp(firebaseConfig));$('connectionStatus').textContent='Firebase 공동 저장 · 한국시간 마감 · 서버 저장 성공 시 완료 표시';syncButtons();}catch(e){status('connectionStatus','Firebase SDK를 불러오지 못했습니다. 인터넷 연결과 브라우저 차단 설정을 확인해주세요. '+explain(e),true);}
+
+$('newFeatureButton').onclick = () => {
+  // 현재 창에서 이동
+  window.location.href = './new_feature.html'; 
+  
+  // 만약 새 탭/새 창에서 열고 싶다면 아래 코드를 사용하세요:
+  // window.open('./new_feature.html', '_blank');
+};
+
+  
 </script>
 </body></html>
