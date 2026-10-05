@@ -34,7 +34,15 @@
 <div class="days" id="days"></div><button id="submitButton" type="button" class="primary submit">신청 내역 제출</button><p id="saveStatus" class="status" aria-live="polite"></p>
 </section>
 <section id="adminScreen" hidden>
-<div class="row"><h1>식사 신청 집계</h1><button id="leaveAdmin" type="button">관리자 나가기 · 직원 화면</button></div>
+  <div class="row">
+    <h1>식사 신청 집계</h1>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <!-- 새로 추가할 페이지 이동 버튼 -->
+      <button id="newFeatureButton" type="button" class="primary">신규 기능 페이지</button>
+      <button id="leaveAdmin" type="button">관리자 나가기 · 직원 화면</button>
+    </div>
+  </div>
+  
 <div class="panel"><div class="fields"><label>조회 방식<select id="viewMode"><option value="day">일별</option><option value="month">월별</option></select></label><label id="dayField">조회 날짜<input id="queryDate" type="date"></label><label id="monthField" hidden>조회 연월<input id="queryMonth" type="month"></label><label>신청자 구분<select id="queryGroup"><option value="all">전체</option><option value="gs">GS직원</option><option value="partner">협력사</option><option value="vip">VIP</option></select></label></div><div class="actions"><button id="refreshAdmin" type="button" class="primary">조회 · 새로고침</button><span class="subtle">모든 단가는 부가세 포함</span></div><p id="adminStatus" class="status" aria-live="polite"></p></div>
 <div id="adminResults" hidden><div class="totals" id="totalCards"></div><div class="panel"><h2>구분 · 식사 · 메뉴 · 장소별 집계</h2><div class="table-wrap" id="groupedTable"></div></div><div class="panel"><h2>소계</h2><div class="table-wrap" id="subtotalTable"></div></div><div class="panel" id="dailyPanel" hidden><h2>월별 날짜 합계</h2><div class="table-wrap" id="dailyTable"></div></div><div class="panel"><div class="row"><h2>신청자별 상세 내역</h2><span class="subtle">상세 검색은 집계 합계를 변경하지 않습니다.</span></div><label>사번 · 이름 · 회사명 · 소속 검색<input id="detailSearch" type="search" placeholder="검색어 입력"></label><div class="table-wrap" id="detailTable"></div><p id="cancelledCount" class="subtle"></p></div></div>
 <div class="panel"><h2>전체 신청 초기화</h2><p class="subtle">현재 필터와 관계없이 모든 날짜·모든 구분의 신청을 삭제합니다.</p><button id="resetAll" type="button" class="danger">전체 신청 초기화</button></div>
