@@ -17,7 +17,7 @@
 <h1>식사 신청</h1>
 <div class="tabs" role="tablist" aria-label="신청자 구분"><button type="button" data-group="gs" role="tab" aria-selected="true" aria-controls="identityPanel" id="tab-gs">GS직원</button><button type="button" data-group="partner" role="tab" aria-selected="false" aria-controls="identityPanel" id="tab-partner">협력사</button><button type="button" data-group="vip" role="tab" aria-selected="false" aria-controls="identityPanel" id="tab-vip">VIP</button></div>
 <div class="panel" id="identityPanel" role="tabpanel" aria-labelledby="tab-gs"><div class="fields" id="identityFields"></div><div class="actions"><button id="loadButton" type="button" class="primary">기존 신청 불러오기</button><label style="display:flex;align-items:center;gap:7px"><input id="remember" type="checkbox" style="width:18px;min-height:20px;margin:0">이 기기에 정보 기억</label></div><p class="status" id="employeeStatus" aria-live="polite">정보를 입력한 후 기존 신청을 불러오시거나 바로 메뉴를 선택하세요.</p></div>
-<p class="subtle">중식: 백반 · 조식/석식: 백반 제외 메뉴</p><p class="subtle">당일 마감 — 중식 09:00 / 조식·석식 13:00 (한국시간)</p>
+<p class="subtle">중식: 백반 · 조식/석식: 백반 제외 메뉴</p><p class="subtle">마감 시간 — 중식: 당일 09:00 / 석식: 당일 13:00 / 조식: 전일 13:00 (한국시간)</p>
 <div class="weekbar"><button id="prevWeek" type="button">‹ 이전 주</button><strong id="weekLabel"></strong><button id="nextWeek" type="button">다음 주 ›</button></div>
 <div class="days" id="days"></div><button id="submitButton" type="button" class="primary submit">신청 내역 제출</button><p id="saveStatus" class="status" aria-live="polite"></p>
 </section>
@@ -50,7 +50,21 @@ const money=n=>Number(n).toLocaleString('ko-KR')+'원', price=m=>m==='백반'?80
 const iso=d=>d.toISOString().slice(0,10), addDays=(s,n)=>iso(new Date(Date.parse(s+'T00:00:00Z')+n*86400000));
 function todayKst(){return iso(new Date(Date.now()+9*3600000));}
 function firstMonday(date){const weekday=new Date(date+'T00:00:00Z').getUTCDay();return addDays(date,weekday===0?1:1-weekday);}
-function deadline(date,meal){return Date.parse(date+'T'+(meal==='lunch'?'09:00:00':'13:00:00')+'+09:00');}
+
+/* 식사별 마감 기준 계산 함수 */
+function deadline(date,meal){
+  if(meal==='lunch'){
+    // 당일 오전 09:00 마감
+    return Date.parse(date+'T09:00:00+09:00');
+  }else if(meal==='dinner'){
+    // 당일 오후 13:00 마감
+    return Date.parse(date+'T13:00:00+09:00');
+  }else if(meal==='breakfast'){
+    // 익일 조식: 전날(D-1) 오후 13:00 마감
+    const prevDay = addDays(date, -1);
+    return Date.parse(prevDay+'T13:00:00+09:00');
+  }
+}
 function closed(date,meal){return Date.now()>=deadline(date,meal);}
 function mealMenus(meal){return meal==='lunch'?['백반']:MENUS.filter(m=>m!=='백반');}
 function status(id,text,error=false){$(id).textContent=text;$(id).classList.toggle('error',error);}
@@ -66,7 +80,40 @@ function formProfile(g){const p={...states[g].profile};for(const k in p)p[k]=Str
 async function identityFor(g,p){const source=g==='gs'?[g,p.empId]:[g,p.company,p.name,p.phone];const buffer=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(source)));return Array.from(new Uint8Array(buffer),b=>b.toString(16).padStart(2,'0')).join('');}
 function normalizeDoc(doc){const d=doc.data();let g=d.group??d.category??'gs';g=Object.keys(GROUPS).includes(g)?g:Object.keys(GROUPS).find(k=>GROUPS[k]===g)??'gs';return {...d,id:doc.id,group:g,empId:d.empId??'',company:d.company??d.affiliation??'',phone:d.phone??'',menu:d.menu??NONE};}
 function syncButtons(){$('loadButton').disabled=busy||!api;$('submitButton').disabled=busy||!api;for(const b of document.querySelectorAll('[data-group],#prevWeek,#nextWeek'))b.disabled=busy;for(const input of $('identityFields').querySelectorAll('input'))input.disabled=busy;$('refreshAdmin').disabled=adminLoading||mutationBusy||!api;$('resetAll').disabled=adminLoading||mutationBusy||!api;for(const b of $('detailTable').querySelectorAll('button'))b.disabled=mutationBusy||adminLoading;}
-function renderDays(){const s=states[group];$('weekLabel').textContent=week.replaceAll('-','.')+' ~ '+addDays(week,5).slice(5).replace('-','.');let html='';for(let i=0;i<6;i++){const date=addDays(week,i);html+='<article class="day"><div class="day-head"><h3>'+['월요일','화요일','수요일','목요일','금요일','토요일'][i]+'</h3><span class="date">'+date+'</span></div>';for(const [meal,label]of Object.entries(MEALS)){const key=date+'|'+meal;const record=s.records.get(key);const current=s.drafts.has(key)?s.drafts.get(key):(record?.menu??NONE);const options=[NONE,...mealMenus(meal)];const old=!options.includes(current);const isClosed=closed(date,meal);html+='<div class="slot"><div class="slot-top"><strong>'+label+'</strong><span>'+(isClosed?'마감':record&&record.menu!==NONE?'신청 완료':'선택 가능')+'</span></div><select aria-label="'+date+' '+label+'" data-date="'+date+'" data-meal="'+meal+'" '+(busy||isClosed?'disabled':'')+'>'+(old?'<option selected disabled>'+esc(current)+' (이전 신청)</option>':'')+options.map(m=>'<option value="'+esc(m)+'" '+(m===current?'selected':'')+'>'+esc(m)+'</option>').join('')+'</select><p class="deadline">당일 '+(meal==='lunch'?'09:00':'13:00')+' 마감'+(old?' · 이전 메뉴는 새로 신청할 수 없습니다.':'')+'</p></div>';}html+='</article>';}$('days').innerHTML=html;for(const select of $('days').querySelectorAll('select'))select.addEventListener('change',()=>{const key=select.dataset.date+'|'+select.dataset.meal;if(closed(select.dataset.date,select.dataset.meal)){status('saveStatus','해당 식사의 마감 시간이 지났습니다.',true);renderDays();return;}if(select.value===(s.records.get(key)?.menu??NONE))s.drafts.delete(key);else s.drafts.set(key,select.value);status('saveStatus','변경한 내역 '+s.drafts.size+'건 · 제출 버튼을 눌러 저장해주세요.');});syncButtons();}
+function renderDays(){
+  const s=states[group];
+  $('weekLabel').textContent=week.replaceAll('-','.')+' ~ '+addDays(week,5).slice(5).replace('-','.');
+  let html='';
+  for(let i=0;i<6;i++){
+    const date=addDays(week,i);
+    html+='<article class="day"><div class="day-head"><h3>'+['월요일','화요일','수요일','목요일','금요일','토요일'][i]+'</h3><span class="date">'+date+'</span></div>';
+    for(const [meal,label]of Object.entries(MEALS)){
+      const key=date+'|'+meal;
+      const record=s.records.get(key);
+      const current=s.drafts.has(key)?s.drafts.get(key):(record?.menu??NONE);
+      const options=[NONE,...mealMenus(meal)];
+      const old=!options.includes(current);
+      const isClosed=closed(date,meal);
+      const deadlineText = meal==='lunch'?'당일 09:00 마감':(meal==='dinner'?'당일 13:00 마감':'전일 13:00 마감');
+      
+      html+='<div class="slot"><div class="slot-top"><strong>'+label+'</strong><span>'+(isClosed?'마감':record&&record.menu!==NONE?'신청 완료':'선택 가능')+'</span></div><select aria-label="'+date+' '+label+'" data-date="'+date+'" data-meal="'+meal+'" '+(busy||isClosed?'disabled':'')+'>'+(old?'<option selected disabled>'+esc(current)+' (이전 신청)</option>':'')+options.map(m=>'<option value="'+esc(m)+'" '+(m===current?'selected':'')+'>'+esc(m)+'</option>').join('')+'</select><p class="deadline">'+deadlineText+(old?' · 이전 메뉴는 새로 신청할 수 없습니다.':'')+'</p></div>';
+    }
+    html+='</article>';
+  }
+  $('days').innerHTML=html;
+  for(const select of $('days').querySelectorAll('select'))select.addEventListener('change',()=>{
+    const key=select.dataset.date+'|'+select.dataset.meal;
+    if(closed(select.dataset.date,select.dataset.meal)){
+      status('saveStatus','해당 식사의 마감 시간이 지났습니다.',true);
+      renderDays();
+      return;
+    }
+    if(select.value===(s.records.get(key)?.menu??NONE))s.drafts.delete(key);
+    else s.drafts.set(key,select.value);
+    status('saveStatus','변경한 내역 '+s.drafts.size+'건 · 제출 버튼을 눌러 저장해주세요.');
+  });
+  syncButtons();
+}
 async function getServer(q){return api.getDocsFromServer(q);}
 async function loadOrders(){if(busy||!api)return;const g=group,s=states[g];let p;try{p=formProfile(g);}catch(e){status('employeeStatus',explain(e),true);return;}busy=true;s.loaded=false;const epoch=++s.epoch;renderDays();status('employeeStatus','서버에서 기존 신청을 불러오는 중…');try{const identity=await identityFor(g,p);const request=g==='gs'?api.query(api.collection(db,'orders'),api.where('empId','==',p.empId)):api.query(api.collection(db,'orders'),api.where('requesterKey','==',identity));const snap=await getServer(request);if(epoch!==s.epoch)return;s.records=new Map();for(const doc of snap.docs){const r=normalizeDoc(doc);if(r.group===g)s.records.set(r.date+'|'+r.meal,r);}s.drafts.clear();s.profile=p;s.identity=identity;s.loaded=true;identityFields();rememberProfiles();status('employeeStatus','기존 신청 '+[...s.records.values()].filter(r=>r.menu!==NONE).length+'건을 불러왔습니다.');}catch(e){s.loaded=false;status('employeeStatus',explain(e),true);}finally{busy=false;renderDays();}}
 function ask(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmDialog').showModal();return new Promise(resolve=>confirmation=resolve);}
